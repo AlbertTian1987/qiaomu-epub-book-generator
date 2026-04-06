@@ -1,0 +1,91 @@
+name: qiaomu-epub-book-generator
+version: 1.0.0
+description: Generate EPUB ebooks from Markdown files with optional cover images, compressed illustrations, and WeChat Reading compatibility
+
+inputs:
+  - name: input_dir
+    type: path
+    description: Directory containing Markdown files
+    required: true
+
+  - name: output_file
+    type: path
+    description: Output EPUB file path
+    required: true
+
+  - name: cover_image
+    type: path
+    description: Cover image path (optional)
+    required: false
+
+  - name: title
+    type: string
+    description: Book title (default: extracted from first article)
+    required: false
+
+  - name: author
+    type: string
+    description: Author name (default: extracted from Markdown frontmatter)
+    required: false
+
+  - name: language
+    type: string
+    description: Language code (default: zh)
+    default: zh
+    required: false
+
+  - name: image_quality
+    type: integer
+    description: JPEG compression quality (default: 88)
+    default: 88
+    required: false
+
+outputs:
+  - name: epub_file
+    type: path
+    description: Generated EPUB file
+
+  - name: compression_report
+    type: text
+    description: Image compression statistics
+
+  - name: chapter_count
+    type: integer
+    description: Number of chapters in the EPUB
+
+workflow:
+  - step: collect_input
+    description: Scan Markdown files and check for accompanying images
+
+  - step: process_content
+    description: Parse Markdown, compress images, build XHTML chapters
+
+  - step: generate_epub
+    description: Create EpubBook object, add metadata, set cover, generate TOC
+
+  - step: validate_output
+    description: Check file size, count chapters, report compression rate
+
+examples:
+  - name: basic_single_file
+    description: Generate EPUB from single Markdown file
+    inputs:
+      input_dir: ~/articles/
+      output_file: ~/output.epub
+
+  - name: with_cover
+    description: Generate EPUB with custom cover image
+    inputs:
+      input_dir: ~/articles/
+      output_file: ~/book.epub
+      cover_image: ~/cover.jpg
+      title: 我的文集
+      author: 作者名
+
+  - name: generate_cover_first
+    description: Generate Mondo-style cover then create EPUB
+    inputs:
+      input_dir: ~/articles/
+      output_file: ~/book.epub
+      title: Paul Graham 文集
+      author: Paul Graham / 向阳乔木

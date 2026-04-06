@@ -1,0 +1,26 @@
+name: qiaomu-epub-book-generator
+version: 1.0.0
+description: Generate EPUB ebooks from Markdown files with optional cover images, compressed illustrations, and WeChat Reading compatibility
+author: vista8
+license: MIT
+
+dependencies:
+  python: ">=3.8"
+  packages:
+    - ebooklib>=0.18
+    - markdown>=3.0
+    - Pillow>=9.0
+
+tools:
+  - Read
+  - Write
+  - Bash
+  - Glob
+
+skills:
+  - qiaomu-mondo-poster-design  # For cover generation
+
+outputs:
+  - "*.epub files in specified output directory"
+  - "Compression report (image sizes before/after)"
+  - "Chapter count and metadata summary"
