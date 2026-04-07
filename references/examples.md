@@ -5,7 +5,9 @@
 ### 1. 单个 Markdown 文件生成 EPUB
 
 ```bash
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_v2.py \
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
+  --title "我的书" \
+  --author "作者名" \
   ~/articles/ \
   ~/output.epub
 ```
@@ -68,16 +70,16 @@ generate_epub(
 )
 ```
 
-### 微信读书优化版（gen_epub_v2.py）
+### 微信读书优化版（gen_epub.py）
 
 ```python
-from scripts.gen_epub_v2 import generate_epub
+from scripts.gen_epub import generate_epub
 
 generate_epub(
     input_dir="~/articles",
     output_file="~/output.epub",
-    title="Paul Graham 文集",
-    author="Paul Graham / 向阳乔木",
+    title="我的文集",
+    author="作者名",
     language="zh",
     image_quality=85  # JPEG 压缩质量
 )
@@ -99,27 +101,69 @@ generate_epub_with_cover(
 
 ## 完整工作流示例
 
-### 场景：Paul Graham 文集制作
+### 场景：传记类电子书制作（马斯克传）
+
+**真实案例**：10 章节传记，从南非少年到世界首富
+
+```bash
+# 1. 准备文章目录
+mkdir -p /tmp/musk-book/articles/
+
+# 2. 文章命名规范（按章节顺序）
+/tmp/musk-book/articles/
+  ├── 01-南非少年.md
+  ├── 02-初试锋芒.md
+  ├── 03-PayPal传奇.md
+  ├── 04-仰望星空.md
+  ├── 05-电动革命.md
+  ├── 06-多线作战.md
+  ├── 07-AI野心.md
+  ├── 08-推特风云.md
+  ├── 09-政治漩涡.md
+  └── 10-首富人生.md
+
+# 3. 一键生成（自动生成 HTML 封面）
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
+  --title "埃隆·马斯克传" \
+  --subtitle "从南非少年到世界首富的传奇人生" \
+  --author "向阳乔木" \
+  --language zh \
+  --cover-html \
+  /tmp/musk-book/articles/ \
+  ~/Downloads/埃隆马斯克传.epub
+
+# 4. 输出结果
+# ✅ Done!
+#   Output: ~/Downloads/埃隆马斯克传.epub
+#   File size: 0.2 MB
+#   Chapters: 10
+```
+
+**最佳实践**：
+- ✅ 文章按章节编号（01-、02-...）确保顺序
+- ✅ 使用 `--cover-html` 自动生成精美封面
+- ✅ 副标题概括核心内容
+- ✅ 纯文本传记约 0.2 MB，适合快速阅读
+- ✅ 兼容微信读书、Apple Books
+
+### 场景：技术文集制作
 
 ```bash
 # 1. 准备目录结构
-mkdir -p ~/pg-essays/{articles,covers}
+mkdir -p ~/tech-essays/{articles,covers}
 
-# 2. 生成封面（选择 3 种风格）
-cd ~/pg-essays/covers
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_pg_covers.py 0 3
+# 2. 生成 EPUB（自动生成封面）
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
+  --title "我的技术文集" \
+  --subtitle "230篇创业与编程经典" \
+  --author "作者名" \
+  --language zh \
+  --cover-html \
+  ~/tech-essays/articles/ \
+  ~/tech-essays/output.epub
 
-# 3. 选择最喜欢的封面（假设是 cover-2.png）
-cp cover-2.png ../cover.png
-
-# 4. 生成 EPUB
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_with_cover.py \
-  ~/pg-essays/articles/ \
-  ~/pg-essays/paul-graham-essays.epub \
-  ~/pg-essays/cover.png
-
-# 5. 验证输出
-ls -lh ~/pg-essays/paul-graham-essays.epub
+# 3. 验证输出
+ls -lh ~/tech-essays/output.epub
 ```
 
 ### 场景：多篇文章快速生成
