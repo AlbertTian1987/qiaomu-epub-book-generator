@@ -103,18 +103,21 @@ hr {
 }
 /* Code blocks */
 pre {
-    background: #f5f5f5;
-    border: 1px solid #ddd;
+    background: #f8f8f8;
+    border-left: 3px solid #0066cc;
     border-radius: 4px;
     padding: 1em;
     overflow-x: auto;
     margin: 1em 0;
-    font-family: "SF Mono", "Monaco", "Consolas", "Liberation Mono", monospace;
+    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Fira Mono",
+                 "Roboto Mono", "Consolas", "Courier New", monospace;
     font-size: 0.85em;
     line-height: 1.4;
+    tab-size: 2;
 }
 code {
-    font-family: "SF Mono", "Monaco", "Consolas", "Liberation Mono", monospace;
+    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Fira Mono",
+                 "Roboto Mono", "Consolas", "Courier New", monospace;
     font-size: 0.9em;
     background: #f0f0f0;
     padding: 0.2em 0.4em;
@@ -137,11 +140,15 @@ th, td {
     text-align: left;
 }
 th {
-    background: #f5f5f5;
+    background-color: #0066cc;
+    color: white;
     font-weight: bold;
 }
-tr:nth-child(even) {
-    background: #fafafa;
+tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+tbody tr:hover {
+    background-color: #f0f0f0;
 }
 /* Lists */
 ul, ol {
@@ -476,9 +483,21 @@ def parse_article(md_path):
     with open(md_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
+    # Check for YAML frontmatter
+    yaml_frontmatter = {}
+    if content.startswith('---\n'):
+        parts = content.split('---\n', 2)
+        if len(parts) >= 3:
+            try:
+                import yaml
+                yaml_frontmatter = yaml.safe_load(parts[1]) or {}
+                content = parts[2]  # Use content after frontmatter
+            except:
+                pass  # If YAML parsing fails, continue with original content
+
     lines = content.strip().split('\n')
 
-    title = "Untitled"
+    title = yaml_frontmatter.get('title', "Untitled")
     metadata = ""
     body_start = 0
 
@@ -487,8 +506,8 @@ def parse_article(md_path):
     while i < len(lines):
         line = lines[i].strip()
 
-        # Extract title from jina.ai format
-        if line.startswith('Title:'):
+        # Extract title from jina.ai format (if not from YAML)
+        if line.startswith('Title:') and title == "Untitled":
             title = line.split(':', 1)[1].strip()
             i += 1
             continue
@@ -503,8 +522,8 @@ def parse_article(md_path):
             body_start = i + 1
             break
 
-        # Standard Markdown title
-        if line.startswith('# '):
+        # Standard Markdown title (if not from YAML)
+        if line.startswith('# ') and title == "Untitled":
             title = line[2:].strip()
             body_start = i + 1
             if i + 1 < len(lines) and lines[i + 1].startswith('> '):
@@ -528,6 +547,37 @@ def parse_article(md_path):
 
     body = '\n'.join(lines[body_start:]).strip()
     return title, metadata, body
+
+
+def split_markdown_by_headers(content):
+    """
+    Split a single Markdown file into chapters based on ## headers.
+    Returns: [(title, content), ...]
+    """
+    lines = content.split('\n')
+    chapters = []
+    current_title = None
+    current_content = []
+
+    for line in lines:
+        # Match ## headers (second level)
+        if line.startswith('## '):
+            # Save previous chapter
+            if current_title:
+                chapters.append((current_title, '\n'.join(current_content).strip()))
+            # Start new chapter
+            current_title = line[3:].strip()
+            current_content = [line]  # Include the header in content
+        else:
+            if current_title:
+                current_content.append(line)
+            # Skip content before first ## header
+
+    # Save last chapter
+    if current_title:
+        chapters.append((current_title, '\n'.join(current_content).strip()))
+
+    return chapters
 
 
 def build_xhtml(title, metadata, image_html, body_html):
@@ -679,53 +729,126 @@ def create_epub(args):
     total_img_size = 0
     total_img_count = 0
 
+    # Check if we should split by headers (single file with ## headers)
+    should_split = len(md_files) == 1
+    if should_split:
+        with open(md_files[0], 'r', encoding='utf-8') as f:
+            full_content = f.read()
+
+        # Extract book title from # header
+        title_text, metadata, body = parse_article(md_files[0])
+
+        # Split by ## headers
+        chapter_list = split_markdown_by_headers(body)
+
+        if len(chapter_list) > 1:
+            print(f"  Splitting into {len(chapter_list)} chapters by ## headers")
+        else:
+            # Fallback to single chapter
+            chapter_list = [(title_text, body)]
+            should_split = False
+    else:
+        chapter_list = None
+
+    chapter_num = 0
     for i, md_path in enumerate(md_files, 1):
         slug = Path(md_path).stem
-        print(f"  [{i}/{len(md_files)}] {slug}")
 
-        title_text, metadata, body = parse_article(md_path)
+        if should_split and chapter_list:
+            # Process split chapters from single file
+            for ch_title, ch_body in chapter_list:
+                chapter_num += 1
+                print(f"  [{chapter_num}/{len(chapter_list)}] {ch_title}")
 
-        # Download and embed images from Markdown
-        body, img_count, img_size = extract_and_download_images(
-            body, book, args.image_width, args.image_quality
-        )
-        total_img_count += img_count
-        total_img_size += img_size
+                # Download and embed images from Markdown
+                ch_body, img_count, img_size = extract_and_download_images(
+                    ch_body, book, args.image_width, args.image_quality
+                )
+                total_img_count += img_count
+                total_img_size += img_size
 
-        if img_count > 0:
-            print(f"    → Downloaded {img_count} images ({img_size / 1024:.1f} KB)")
+                if img_count > 0:
+                    print(f"    → Downloaded {img_count} images ({img_size / 1024:.1f} KB)")
 
-        # Markdown → HTML with full extensions
-        md_html = markdown.markdown(
-            body,
-            extensions=[
-                'extra',          # Tables, fenced code blocks, etc.
-                'codehilite',     # Syntax highlighting
-                'nl2br',          # Newline to <br>
-                'sane_lists'      # Better list handling
-            ],
-            extension_configs={
-                'codehilite': {
-                    'noclasses': True,
-                    'pygments_style': 'default'
+                # Markdown → HTML with full extensions
+                md_html = markdown.markdown(
+                    ch_body,
+                    extensions=[
+                        'extra',          # Tables, fenced code blocks, etc.
+                        'codehilite',     # Syntax highlighting
+                        'nl2br',          # Newline to <br>
+                        'sane_lists'      # Better list handling
+                    ],
+                    extension_configs={
+                        'codehilite': {
+                            'noclasses': True,
+                            'pygments_style': 'default'
+                        }
+                    }
+                )
+                md_html = fix_xhtml(md_html)
+
+                chapter_html = build_xhtml(ch_title, "", "", md_html)
+
+                chapter = epub.EpubHtml(
+                    title=ch_title,
+                    file_name=f"chapter_{chapter_num:03d}.xhtml",
+                    lang=args.language
+                )
+                chapter.set_content(chapter_html.encode('utf-8'))
+
+                book.add_item(chapter)
+                chapters.append(chapter)
+                toc_items.append(epub.Link(f"chapter_{chapter_num:03d}.xhtml", ch_title, f"ch{chapter_num}"))
+                spine.append(chapter)
+        else:
+            # Process multiple files normally
+            chapter_num += 1
+            print(f"  [{chapter_num}/{len(md_files)}] {slug}")
+
+            title_text, metadata, body = parse_article(md_path)
+
+            # Download and embed images from Markdown
+            body, img_count, img_size = extract_and_download_images(
+                body, book, args.image_width, args.image_quality
+            )
+            total_img_count += img_count
+            total_img_size += img_size
+
+            if img_count > 0:
+                print(f"    → Downloaded {img_count} images ({img_size / 1024:.1f} KB)")
+
+            # Markdown → HTML with full extensions
+            md_html = markdown.markdown(
+                body,
+                extensions=[
+                    'extra',          # Tables, fenced code blocks, etc.
+                    'codehilite',     # Syntax highlighting
+                    'nl2br',          # Newline to <br>
+                    'sane_lists'      # Better list handling
+                ],
+                extension_configs={
+                    'codehilite': {
+                        'noclasses': True,
+                        'pygments_style': 'default'
+                    }
                 }
-            }
-        )
-        md_html = fix_xhtml(md_html)
+            )
+            md_html = fix_xhtml(md_html)
 
-        chapter_html = build_xhtml(title_text, metadata, "", md_html)
+            chapter_html = build_xhtml(title_text, metadata, "", md_html)
 
-        chapter = epub.EpubHtml(
-            title=title_text,
-            file_name=f"chapter_{i:03d}.xhtml",
-            lang=args.language
-        )
-        chapter.set_content(chapter_html.encode('utf-8'))
+            chapter = epub.EpubHtml(
+                title=title_text,
+                file_name=f"chapter_{chapter_num:03d}.xhtml",
+                lang=args.language
+            )
+            chapter.set_content(chapter_html.encode('utf-8'))
 
-        book.add_item(chapter)
-        chapters.append(chapter)
-        toc_items.append(epub.Link(f"chapter_{i:03d}.xhtml", title_text, f"ch{i}"))
-        spine.append(chapter)
+            book.add_item(chapter)
+            chapters.append(chapter)
+            toc_items.append(epub.Link(f"chapter_{chapter_num:03d}.xhtml", title_text, f"ch{chapter_num}"))
+            spine.append(chapter)
 
     # TOC and navigation
     book.toc = toc_items
