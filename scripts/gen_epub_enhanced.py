@@ -110,7 +110,6 @@ p { margin: 0; text-indent: 2em; text-align: justify; }
 
 /* 章首/引用后/场景分隔后第一段不缩进 */
 .chapter-ornament + p, blockquote + p, .scene-break + p,
-h1 + p, h2 + p, h3 + p, h4 + p { text-indent: 0; }
 
 /* --- 4. Chapter Title System --- */
 .chapter-header { text-align: center; margin: 25vh 0 0 0; padding: 0; }

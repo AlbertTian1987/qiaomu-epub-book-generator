@@ -126,10 +126,10 @@ def run_checks(md_dir):
     else:
         check(checks, "强制", "每个 .md 文件可读（UTF-8, 非空）", True)
 
-    # ── C2: 文件名格式 NNN-*.md 或 NNN_*.md ──────────────────────────────
+    # ── C2: 文件名格式 NNN.md, NNN-*.md 或 NNN_*.md ──────────────────────
     bad_fnames = []
     for fname in md_files:
-        if not re.match(r"\d+[-_].+\.md$", fname):
+        if not re.match(r"\d+[-_].+\.md$", fname) and not re.match(r"\d+\.md$", fname):
             bad_fnames.append(fname)
     if bad_fnames:
         detail = "不合规文件名: " + ", ".join(bad_fnames)
