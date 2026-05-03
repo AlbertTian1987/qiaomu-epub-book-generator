@@ -117,16 +117,16 @@ html[lang^="en"] em, html[lang^="en"] i {
 /* --- 3. Paragraphs --- */
 p { margin: 0; text-indent: 1em; text-align: left; }
 
-/* 章首/引用后/场景分隔后第一段不缩进 */
-.chapter-ornament + p, blockquote + p, .scene-break + p,
+/* 场景分隔后第一段不缩进 */
+blockquote + p, .scene-break + p { text-indent: 0; }
 
-/* --- 4. Chapter Title System --- */
+/* --- 4. Chapter Title System (全部居中) --- */
 .chapter-header { text-align: center; margin: 25vh 0 0 0; padding: 0; }
-.chapter-num { font-size: 0.7em; color: var(--stone); font-weight: 500; }
+.chapter-num { text-align: center; font-size: 0.7em; color: var(--stone); font-weight: 500; }
 .chapter-num.num-short { letter-spacing: 0.25em; }
 .chapter-num.num-long  { letter-spacing: 0.1em; }
 .chapter-title {
-    font-weight: 500; color: var(--text); margin: 0;
+    font-weight: 500; color: var(--text); margin: 0; text-align: center;
     text-wrap: balance; word-wrap: break-word; overflow-wrap: break-word;
 }
 .chapter-num-above .chapter-num { display: block; margin-bottom: 0.3em; }
