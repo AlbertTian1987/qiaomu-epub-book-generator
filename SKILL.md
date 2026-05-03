@@ -37,13 +37,30 @@ exclusions:
 - ✅ 自动图片压缩（PNG→JPEG，可配置质量）
 - ✅ **完整 Markdown 渲染**（代码块、表格、列表等）
 - ✅ **专业书籍封面设计**（遵循出版行业最佳实践）
-  - HTML 封面：快速生成，适合大多数场景
   - SVG 封面：KDP 标准尺寸（1600x2560），专业排版
-  - 7 种智能主题：kami（默认，编辑感羊皮纸风）, tech, business, design, literature, science, personal
-  - 3 种布局风格：minimal, classic, modern
-- ✅ 自动目录（TOC）生成
-- ✅ 微信读书兼容模式
-- ✅ 中文字体优化排版
+  - **kami-novel 主题**：羊皮纸 + 墨蓝，零几何装饰，仅字体与双线（网文默认）
+  - **literary 布局**：标题上方下方双细线，无几何形状
+  - 自动书名长度自适应（4 档字号）
+  - 关键词自动路由：网文→kami-novel，文学→literature
+- ✅ **Kami 文学版排版系统**
+  - **双光照色契约**：浅色羊皮纸 `#f5f4ed` / 暗色暖墨棕 `#1c1a17`
+  - **webnovel/literary 双模式**：`--mode` 切换，字号/行高自适应
+  - **章节标题 4 档自适应**：根据章号+章名总字符数自动选择字号/字距
+  - **中文着重号**：`<em>` 渲染为旁点，英文保留真斜体
+  - **段首缩进 2em**：全段落统一，无特例
+  - **左对齐排版**：跨阅读器一致
+- ✅ **网文特化**
+  - **卷分组 + 卷封页**：NCX 嵌套 TOC，frontmatter/文件夹/文件名三种约定
+  - **楔子/序章/引子**：TOC 前置区，无章号
+  - **番外**：TOC 附录区
+  - **场景分隔符归一**：`---`/`***`/连续空行 → ❦
+  - **章末 ❦ 花饰**：每章末尾自动添加
+  - **未完待续检测**：正文末尾标记自动样式化
+  - **作者按**：章末引用块渲染为 stone 小字
+- ✅ **跨阅读器兼容**：Apple Books / Calibre / 微信读书
+- ✅ **输入合约验收脚本**：`verify_novel_input.py`（12 项检查）
+- ✅ **Charter 字体嵌入**（可选，`--embed-charter`）
+- ✅ **中文标点归一**（可选，`--no-punct-fix` 关闭）
 
 ## 使用方式
 
@@ -85,8 +102,30 @@ python3 gen_epub_enhanced.py <input_dir> <output.epub> \
   --subtitle "副标题（可选）"
 ```
 
-**可用主题**：kami（默认，编辑感羊皮纸 + 墨蓝 serif）, tech, business, design, literature, science, personal（关键词命中时自动切换到对应主题，未命中则用 kami）
-**可用布局**（仅 SVG）：minimal, classic, modern
+**可用主题**：kami（默认）, kami-novel（网文专用，羊皮纸+墨蓝）, tech, business, design, literature, science, personal
+
+### 完整 CLI 参数
+
+```bash
+# 网文小说（推荐）
+python3 gen_epub_enhanced.py <input_dir> <output.epub> \
+  --title "书名" --author "作者" --mode webnovel --cover-svg
+
+# 可选增强
+  --embed-charter            # 嵌入 Charter 字体（~1.5MB）
+  --no-punct-fix             # 关闭中文标点归一
+  --chapter-num-position {above|inline|hidden}  # 章号位置
+```
+
+| 参数 | 说明 | 默认 |
+|------|------|------|
+| `--mode` | 排版模式：webnovel / literary | webnovel |
+| `--chapter-num-position` | 章号位置：above / inline / hidden | 自动 |
+| `--no-punct-fix` | 关闭标点归一 | 关（归一开启） |
+| `--embed-charter` | 嵌入 Charter 字体 | 不嵌入 |
+| `--cover-theme` | 封面主题 | 自动检测 |
+| `--cover-layout` | 封面布局 | minimal |
+**可用布局**（仅 SVG）：minimal, classic, modern, **literary**（网文默认，零几何装饰）
 
 ### 基础用法
 
@@ -160,7 +199,7 @@ python3 gen_epub_enhanced.py <input_dir> <output.epub> \
 
 ## 脚本说明
 
-- `scripts/gen_epub_enhanced.py` - **推荐** 增强版（自动下载图片 + SVG 转换 + 本地文件支持 + 完整 Markdown 渲染 + Kami 设计语言）
+- `scripts/gen_epub_enhanced.py` - **推荐** 增强版（Kami 文学版排版、卷分组、NCX 嵌套 TOC、标点归一、双光照色契约、Charter 字体嵌入、520 章实测通过）
 - `scripts/gen_epub.py` - 基础 EPUB 生成（本地图片匹配模式，WeChat 兼容简化版 CSS）
 - `scripts/gen_cover_svg.py` - SVG 封面生成器（KDP 标准 1600x2560，7 主题 × 3 布局）
 - `scripts/gen_cover_html.py` - HTML 封面生成器（Playwright 截图模式）
