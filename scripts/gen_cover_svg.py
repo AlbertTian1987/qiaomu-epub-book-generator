@@ -22,6 +22,17 @@ THEMES = {
         "subtitle_text": "#504e49",
         "is_light": True
     },
+    "kami-novel": {
+        "keywords": ["小说", "novel", "fiction", "长篇", "短篇", "故事", "story",
+                      "网文", "连载", "仙侠", "修真", "玄幻", "都市", "穿越", "重生"],
+        "primary": "#f5f4ed",
+        "secondary": "#ece9d8",
+        "accent": "#1B365D",
+        "text": "#141413",
+        "subtitle_text": "#504e49",
+        "is_light": True,
+        "default_layout": "literary"
+    },
     "tech": {
         "keywords": ["技术", "编程", "代码", "开发", "ai", "claude", "agent", "llm", "算法", "架构", "前端", "后端", "数据", "机器学习"],
         "primary": "#1a1a2e",      # Deep navy
@@ -50,7 +61,7 @@ THEMES = {
         "is_light": False
     },
     "literature": {
-        "keywords": ["文学", "小说", "诗歌", "散文", "故事", "传记", "历史", "哲学", "思想"],
+        "keywords": ["文学", "诗歌", "散文", "传记", "历史", "哲学", "思想"],
         "primary": "#1e3c72",      # Navy blue
         "secondary": "#2a5298",
         "accent": "#ffd89b",       # Warm yellow
@@ -106,6 +117,15 @@ LAYOUTS = {
         "author_y": "86%",
         "author_size": "64px",
         "visual_element": "diagonal_accent"
+    },
+    "literary": {
+        "title_y": "38%",
+        "title_size": "150px",
+        "subtitle_y": "55%",
+        "subtitle_size": "44px",
+        "author_y": "85%",
+        "author_size": "48px",
+        "visual_element": "literary_lines"
     }
 }
 
@@ -201,6 +221,13 @@ def generate_visual_element(layout_style, theme_colors, width=1600, height=2560)
         <circle cx="{width * 0.92}" cy="{height * 0.78}" r="12" fill="{accent}" opacity="0.9"/>
         '''
 
+    elif layout_style == "literary_lines":
+        return f'''
+        <!-- Elegant literary lines framing the title -->
+        <line x1="{width * 0.375}" y1="{height * 0.33}" x2="{width * 0.625}" y2="{height * 0.33}" stroke="{accent}" stroke-width="1.5" opacity="0.8"/>
+        <line x1="{width * 0.41}" y1="{height * 0.47}" x2="{width * 0.59}" y2="{height * 0.47}" stroke="{accent}" stroke-width="1" opacity="0.6"/>
+        '''
+
     return ""
 
 
@@ -212,8 +239,29 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
     if theme is None:
         theme = detect_theme(title, subtitle, author)
 
+    # 当 theme 是 kami-novel 且 layout 为默认值时，切换到 literary
+    if theme == "kami-novel" and layout == "minimal":
+        layout = "literary"
+
     theme_colors = THEMES.get(theme, THEMES["kami"])
-    layout_config = LAYOUTS.get(layout, LAYOUTS["minimal"])
+    layout_config = dict(LAYOUTS.get(layout, LAYOUTS["minimal"]))
+
+    # 自适应字号：根据书名长度动态调整
+    title_len = len(title)
+    if title_len <= 4:
+        title_size = "220px"
+        title_letter_spacing = "0.4em"
+    elif title_len <= 8:
+        title_size = "180px"
+        title_letter_spacing = "0.3em"
+    elif title_len <= 14:
+        title_size = "140px"
+        title_letter_spacing = "0.15em"
+    else:
+        title_size = "110px"
+        title_letter_spacing = "0.05em"
+
+    layout_config["title_size"] = title_size
 
     is_light = theme_colors.get("is_light", False)
     # 浅色主题（kami）跳过 Google Fonts、用本地 serif 栈、用暖色 KDP 边框
@@ -284,10 +332,11 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
       .title {{
         font-family: {font_family_css};
         font-size: {layout_config['title_size']};
-        font-weight: 900;
+        font-weight: 500;
         fill: {theme_colors['text']};
         text-anchor: middle;
         dominant-baseline: middle;
+        letter-spacing: {title_letter_spacing};
       }}
 
       .subtitle {{
