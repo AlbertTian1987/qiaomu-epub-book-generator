@@ -81,7 +81,7 @@ html, body {
     hanging-punctuation: allow-end last;
 }
 
-body.mode-literary {
+.kami-root.mode-literary {
     line-height: 1.55;
 }
 
@@ -125,16 +125,16 @@ h1 + p, h2 + p, h3 + p, h4 + p { text-indent: 0; }
 .chapter-num-inline .title-sep { color: var(--stone); margin: 0 0.15em; }
 
 /* webnovel 字号档 */
-body.mode-webnovel .chapter-title.title-l  { font-size: 1.6em; letter-spacing: 0.1em;  line-height: 1.20; }
-body.mode-webnovel .chapter-title.title-m  { font-size: 1.4em; letter-spacing: 0.05em; line-height: 1.25; }
-body.mode-webnovel .chapter-title.title-s  { font-size: 1.2em; letter-spacing: 0;      line-height: 1.35; }
-body.mode-webnovel .chapter-title.title-xs { font-size: 1.1em; letter-spacing: 0;      line-height: 1.45; }
+.kami-root.mode-webnovel .chapter-title.title-l  { font-size: 1.6em; letter-spacing: 0.1em;  line-height: 1.20; }
+.kami-root.mode-webnovel .chapter-title.title-m  { font-size: 1.4em; letter-spacing: 0.05em; line-height: 1.25; }
+.kami-root.mode-webnovel .chapter-title.title-s  { font-size: 1.2em; letter-spacing: 0;      line-height: 1.35; }
+.kami-root.mode-webnovel .chapter-title.title-xs { font-size: 1.1em; letter-spacing: 0;      line-height: 1.45; }
 
 /* literary 字号档 */
-body.mode-literary .chapter-title.title-l  { font-size: 2.4em;  letter-spacing: 0.4em;  line-height: 1.15; }
-body.mode-literary .chapter-title.title-m  { font-size: 1.8em;  letter-spacing: 0.2em;  line-height: 1.20; }
-body.mode-literary .chapter-title.title-s  { font-size: 1.4em;  letter-spacing: 0.05em; line-height: 1.30; }
-body.mode-literary .chapter-title.title-xs { font-size: 1.15em; letter-spacing: 0;      line-height: 1.40; }
+.kami-root.mode-literary .chapter-title.title-l  { font-size: 2.4em;  letter-spacing: 0.4em;  line-height: 1.15; }
+.kami-root.mode-literary .chapter-title.title-m  { font-size: 1.8em;  letter-spacing: 0.2em;  line-height: 1.20; }
+.kami-root.mode-literary .chapter-title.title-s  { font-size: 1.4em;  letter-spacing: 0.05em; line-height: 1.30; }
+.kami-root.mode-literary .chapter-title.title-xs { font-size: 1.15em; letter-spacing: 0;      line-height: 1.40; }
 
 /* --- 5. Chapter Ornament --- */
 .chapter-ornament { text-align: center; color: var(--ink); margin: 1.5em 0; line-height: 1; }
@@ -759,9 +759,11 @@ def build_chapter_xhtml(chapter_info, body_html, mode="webnovel"):
 <title>{escaped_title}</title>
 <link rel="stylesheet" type="text/css" href="style.css" />
 </head>
-<body class="{body_class}">
+<body>
+<div class="kami-root {body_class}">
 {header}
 {body_html}
+</div>
 </body>
 </html>"""
 
