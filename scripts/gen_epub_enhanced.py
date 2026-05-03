@@ -1333,22 +1333,12 @@ def create_epub(args):
                 (epub.Section("楔子／序章", preamble_links[0].href if preamble_links else ""),
                  preamble_links))
 
-        # 命名卷
+        # 命名卷（无卷封页，NCX 嵌套直接指向第一章）
         for vol_name in ordered_vols:
             entries = named_volumes[vol_name]
             vol_counter += 1
-            vp_file = f"volume_{vol_counter:03d}.xhtml"
-            vp_html = build_volume_page(vol_name, mode=mode)
-            vp_chapter = epub.EpubHtml(
-                title=vol_name, file_name=vp_file, lang=args.language
-            )
-            vp_chapter.set_content(vp_html.encode('utf-8'))
-            vp_chapter.add_item(css_item)
-            book.add_item(vp_chapter)
 
-            vol_links = [epub.Link(vp_file, vol_name, f"vp{vol_counter}")]
-            spine.append(vp_chapter)
-            toc_entries.append((0, vol_name, "", True))
+            vol_links = []
             for ci, chapter, fn in entries:
                 vol_links.append(epub.Link(fn, ci["title"], fn))
                 spine.append(chapter)
