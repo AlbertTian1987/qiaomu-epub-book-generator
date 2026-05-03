@@ -735,6 +735,54 @@ def detect_unfinished(text):
     return text, False
 
 
+def normalize_punctuation(text):
+    """归一化中文标点。在 Markdown 转换前的纯文本上操作。
+    可通过 --no-punct-fix 关闭。
+
+    规则：
+    1. ... -> ……（英文省略号转中文）
+    2. -- -> ——（双连字符转破折号，不要动减号）
+    3. 全角字母数字 -> 半角（Ａ->A，１->1）
+    4. 中英文之间插空格（"读完Chapter 5" -> "读完 Chapter 5"）
+    5. 中文与数字之间不插空格（"12月"不动）
+    6. 连续全角/半角空格 -> 一个空格
+    7. 行首/行尾空白 trim
+    8. 不处理代码块内的内容（不好检测，接受误伤）
+    """
+    # 1. 英文省略号 -> 中文省略号
+    text = re.sub(r'\.{3,}', '……', text)
+    text = re.sub(r'\.\s*\.\s*\.', '……', text)
+
+    # 2. 双连字符 -> 破折号（至少两个连续）
+    text = re.sub(r'-{2,}', '——', text)
+
+    # 3. 全角字母数字 -> 半角（U+FF01~FF5E -> U+0021~007E，U+3000 -> U+0020）
+    result = []
+    for ch in text:
+        code = ord(ch)
+        if 0xFF01 <= code <= 0xFF5E:
+            result.append(chr(code - 0xFEE0))
+        elif code == 0x3000:  # 全角空格 -> 半角空格
+            result.append(' ')
+        else:
+            result.append(ch)
+    text = ''.join(result)
+
+    # 4. 中英文之间插空格
+    text = re.sub(r'([一-鿿])([a-zA-Z])', r'\1 \2', text)
+    text = re.sub(r'([a-zA-Z])([一-鿿])', r'\1 \2', text)
+
+    # 5. 中文与数字之间不插空格（由第4步保证，\d 不在 [a-zA-Z] 范围内）
+
+    # 6. 连续空白 -> 一个空格
+    text = re.sub(r'[ \t]+', ' ', text)
+
+    # 7. 行首行尾 trim
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+
+    return text
+
+
 def style_author_notes(html):
     """将章末引用块中的 PS: / 作者按 / 作者注 样式化为 author-note。"""
     html = re.sub(
@@ -988,6 +1036,10 @@ def create_epub(args):
                 # --- P0: 未完待续标记检测 ---
                 ch_body_clean, has_unfinished = detect_unfinished(ch_body)
 
+                # --- P1: 标点归一（--no-punct-fix 可关闭）---
+                if not getattr(args, 'no_punct_fix', False):
+                    ch_body_clean = normalize_punctuation(ch_body_clean)
+
                 # Download and embed images from Markdown
                 ch_body_processed, img_count, img_size = extract_and_download_images(
                     ch_body_clean, book, args.image_width, args.image_quality, base_dir=md_dir
@@ -1065,6 +1117,10 @@ def create_epub(args):
 
             # --- P0: 未完待续标记检测 ---
             body_clean, has_unfinished = detect_unfinished(body)
+
+            # --- P1: 标点归一（--no-punct-fix 可关闭）---
+            if not getattr(args, 'no_punct_fix', False):
+                body_clean = normalize_punctuation(body_clean)
 
             # Download and embed images from Markdown
             body_processed, img_count, img_size = extract_and_download_images(
@@ -1303,6 +1359,8 @@ def main():
                         help='排版模式: webnovel（默认，长章名自适应）, literary（短章名戏剧化）')
     parser.add_argument('--chapter-num-position', choices=['above', 'inline', 'hidden'], default=None,
                         help='章号位置: above（上方独立行）, inline（与章名同行）, hidden（隐藏）')
+    parser.add_argument('--no-punct-fix', action='store_true',
+                        help='关闭中文标点自动归一化')
 
     args = parser.parse_args()
     create_epub(args)
