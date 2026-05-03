@@ -11,6 +11,12 @@ trigger_phrases:
   - "generate epub"
   - "create ebook"
   - "make epub"
+  - "准备小说源文件"
+  - "准备小说"
+  - "处理小说"
+  - "料理小说"
+  - "prepare novel"
+  - "split novel"
 exclusions:
   - "阅读 EPUB"
   - "打开 EPUB"
@@ -33,7 +39,7 @@ exclusions:
 - ✅ **专业书籍封面设计**（遵循出版行业最佳实践）
   - HTML 封面：快速生成，适合大多数场景
   - SVG 封面：KDP 标准尺寸（1600x2560），专业排版
-  - 6 种智能主题：tech, business, design, literature, science, personal
+  - 7 种智能主题：kami（默认，编辑感羊皮纸风）, tech, business, design, literature, science, personal
   - 3 种布局风格：minimal, classic, modern
 - ✅ 自动目录（TOC）生成
 - ✅ 微信读书兼容模式
@@ -79,7 +85,7 @@ python3 gen_epub_enhanced.py <input_dir> <output.epub> \
   --subtitle "副标题（可选）"
 ```
 
-**可用主题**：tech, business, design, literature, science, personal（自动根据标题内容检测）
+**可用主题**：kami（默认，编辑感羊皮纸 + 墨蓝 serif）, tech, business, design, literature, science, personal（关键词命中时自动切换到对应主题，未命中则用 kami）
 **可用布局**（仅 SVG）：minimal, classic, modern
 
 ### 基础用法
@@ -107,7 +113,7 @@ python3 gen_epub_enhanced.py <input_dir> <output.epub> \
 - 书名：《我的书》
 - 副标题：精选文章合集
 - 作者：向阳乔木
-- 风格：Mondo 极简主义
+- 风格：kami 编辑感（默认）
 ```
 
 **真实案例**：
@@ -154,11 +160,10 @@ python3 gen_epub_enhanced.py <input_dir> <output.epub> \
 
 ## 脚本说明
 
-- `scripts/gen_epub_enhanced.py` - **推荐** 增强版（自动下载图片 + SVG 转换 + 本地文件支持 + 完整 Markdown 渲染）
-- `scripts/gen_epub.py` - 基础 EPUB 生成（本地图片匹配模式）
-- `scripts/gen_epub_v2.py` - 微信读书兼容版
-- `scripts/gen_epub_with_cover.py` - 带封面版本
-- `scripts/gen_cover.py` - Mondo 风格封面生成
+- `scripts/gen_epub_enhanced.py` - **推荐** 增强版（自动下载图片 + SVG 转换 + 本地文件支持 + 完整 Markdown 渲染 + Kami 设计语言）
+- `scripts/gen_epub.py` - 基础 EPUB 生成（本地图片匹配模式，WeChat 兼容简化版 CSS）
+- `scripts/gen_cover_svg.py` - SVG 封面生成器（KDP 标准 1600x2560，7 主题 × 3 布局）
+- `scripts/gen_cover_html.py` - HTML 封面生成器（Playwright 截图模式）
 
 ## 常见问题与解决方案
 
@@ -232,3 +237,67 @@ python3 gen_epub_enhanced.py /tmp/tw93_articles/ output.epub \
 ## 示例
 
 详见 [references/examples.md](references/examples.md)
+
+---
+
+## 网文源文件准备 / 小说料理人
+
+当用户说"准备小说源文件"、"帮我把这些 HTML/TXT 处理成小说"或类似意图时，你进入「小说料理人」模式。
+
+**核心原则：不要直接用 Read/Write 逐文件处理。先写脚本，再跑验收，迭代到全绿。**
+
+**输入合约**：详见 [references/input-contract.md](references/input-contract.md)
+
+### 工作流
+
+```
+① 分析原始材料结构（打开样本看规律）
+    ↓
+② 编写一次性 Python 转换脚本
+    ↓
+③ 编写一次性 Python 验收脚本（基于合约 §8 验收标准）
+    ↓
+④ 跑转换脚本 → 跑验收脚本
+    ↓  (有强制项未通过)
+⑤ 分析失败原因 → 改转换脚本 → 回到 ④
+    ↓  (全部通过)
+⑥ 报告统计结果
+```
+
+### Step by Step
+
+**① 分析**：读 2-3 个样本文件，识别：
+- HTML：正文容器选择器、需去除的噪声、分页关系
+- TXT：章节分隔符的正则模式、编码
+- 已有 MD：文件命名是否规范、H1 是否完整
+
+**② 写转换脚本**：
+- 针对**这一次的源材料**，不是通用工具
+- 用 Python + BeautifulSoup（HTML）或 re（TXT）
+- 幂等设计（覆盖输出目录）
+- 每章输出单个 `.md` 文件
+
+**③ 写验收脚本**：
+- 基于合约 §8 的验收模板
+- 补充本次源材料特有的检查（如"HTML 来源无残留标签"）
+
+**④ 迭代**：
+- 每轮：跑转换 → 跑验收 → 看失败项 → 修正则/逻辑 → 重跑
+- 验收全部强制项通过才算完成
+- 改脚本而不是改产出文件
+
+**⑤ 收尾**：报告文件数、总字数、警告项。脚本可留在 `scripts/prepare/` 供复现。
+
+### 不做的
+
+- 不改正文内容（错别字、润色、删减段落）
+- 不用 Read/Write 工具代替脚本处理大量文件
+
+### 章节拆分正则（TXT 来源参考）
+
+```
+^第[一二三四五六七八九十百千万零0-9]+[章节篇集部卷回]\s*
+^第\d+[章节篇集部卷回]\s*
+^Chapter\s+\d+
+^CHAPTER\s+\d+
+```

@@ -2,108 +2,89 @@
 
 ## 基础用法
 
-### 1. 单个 Markdown 文件生成 EPUB
+### 1. 单个 Markdown 目录生成 EPUB（基础版，WeChat 兼容简化样式）
 
 ```bash
 python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
-  --title "我的书" \
-  --author "作者名" \
   ~/articles/ \
-  ~/output.epub
+  ~/output.epub \
+  --title "我的书" \
+  --author "作者名"
 ```
 
 **说明**：
-- 自动扫描 `~/articles/` 目录下的所有 `.md` 文件
-- 从第一篇文章提取标题和作者
+- 自动扫描 `~/articles/` 目录下所有 `.md` 文件
+- 从第一篇文章提取标题（如未指定）
 - 自动查找同名 PNG/JPG 配图并压缩嵌入
-- 生成微信读书兼容的 EPUB
+- CSS 仅含基础风格（h1/h2/h3、p、blockquote、img），适合纯文本类书籍
 
-### 2. 带封面的 EPUB
+### 2. 增强版生成（默认推荐，含完整 Markdown 渲染 + Kami 设计语言）
 
 ```bash
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_with_cover.py \
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
   ~/articles/ \
   ~/book.epub \
-  ~/cover.jpg
+  --title "我的文集" \
+  --author "作者名" \
+  --cover-svg \
+  --subtitle "精选合集"
 ```
 
 **说明**：
-- 第三个参数指定封面图片路径
-- 封面会自动设置为 EPUB 的 cover image
-- 支持 JPG/PNG 格式
+- `--cover-svg` 自动生成 KDP 标准 1600x2560 封面（默认 kami 主题）
+- 完整支持代码块、表格、列表、内联代码
+- 自动下载远程图片、SVG 转 PNG
+- 章节正文使用 Kami 设计语言：羊皮纸调色板 + 墨蓝左边栏 + serif 字体栈
 
-### 3. 生成 Mondo 风格封面
+### 3. 用户自带封面图片
 
 ```bash
-# 生成第 0 号设计（极简主义）
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_pg_covers.py 0 1
-
-# 生成第 3-5 号设计（瑞士国际主义）
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_pg_covers.py 3 3
-
-# 生成所有 10 种设计
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_pg_covers.py 0 10
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
+  ~/articles/ \
+  ~/book.epub \
+  --title "我的书" \
+  --author "作者名" \
+  --cover ~/cover.jpg
 ```
 
 **说明**：
-- 第一个参数：起始设计编号（0-9）
-- 第二个参数：生成数量
-- 输出：`cover-{n}.png`（1200x1800px）
+- `--cover` 与 `--cover-svg` / `--cover-html` 互斥
+- 支持 JPG/PNG 格式
 
-**设计风格**：
-- 0-2: 极简主义（几何图形）
-- 3-5: 瑞士国际主义（网格系统）
-- 6-9: Paul Rand 风格（色块拼贴）
+### 4. 切换封面主题
 
-## Python 脚本调用
+```bash
+# kami 主题（默认，编辑感羊皮纸 + 墨蓝 serif）
+python3 .../gen_epub_enhanced.py ~/articles ~/book.epub \
+  --title "我的散文集" --author "作者" --cover-svg
 
-### 基础版本（gen_epub.py）
+# tech 主题（深海军 + 青色，关键词命中"AI/技术/Claude"等会自动切换）
+python3 .../gen_epub_enhanced.py ~/articles ~/book.epub \
+  --title "AI 编程实战" --author "作者" --cover-svg
+# 或显式指定：--cover-theme tech
 
-```python
-from scripts.gen_epub import generate_epub
-
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    title="我的文集",
-    author="作者名"
-)
+# business / design / literature / science / personal 类似
 ```
 
-### 微信读书优化版（gen_epub.py）
+未匹配关键词时自动回退到 kami。
 
-```python
-from scripts.gen_epub import generate_epub
+## 单独生成封面
 
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    title="我的文集",
-    author="作者名",
-    language="zh",
-    image_quality=85  # JPEG 压缩质量
-)
-```
+```bash
+# SVG 封面（推荐，KDP 标准）
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_cover_svg.py \
+  "书名" "副标题" "作者" cover.jpg kami minimal
 
-### 带封面版本（gen_epub_with_cover.py）
-
-```python
-from scripts.gen_epub_with_cover import generate_epub_with_cover
-
-generate_epub_with_cover(
-    input_dir="~/articles",
-    output_file="~/book.epub",
-    cover_image="~/cover.jpg",
-    title="我的书",
-    author="作者名"
-)
+# HTML 封面（Playwright 截图）
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_cover_html.py \
+  "书名" "副标题" "作者" cover.jpg kami
 ```
 
 ## 完整工作流示例
 
-### 场景：传记类电子书制作（马斯克传）
+### 场景：传记类电子书（马斯克传）
 
-**真实案例**：10 章节传记，从南非少年到世界首富
+10 章节传记，从南非少年到世界首富。
 
 ```bash
 # 1. 准备文章目录
@@ -122,71 +103,62 @@ mkdir -p /tmp/musk-book/articles/
   ├── 09-政治漩涡.md
   └── 10-首富人生.md
 
-# 3. 一键生成（自动生成 HTML 封面）
-python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
+# 3. 一键生成（kami 风格 SVG 封面）
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
+  /tmp/musk-book/articles/ \
+  ~/Downloads/埃隆马斯克传.epub \
   --title "埃隆·马斯克传" \
   --subtitle "从南非少年到世界首富的传奇人生" \
   --author "向阳乔木" \
   --language zh \
-  --cover-html \
-  /tmp/musk-book/articles/ \
-  ~/Downloads/埃隆马斯克传.epub
-
-# 4. 输出结果
-# ✅ Done!
-#   Output: ~/Downloads/埃隆马斯克传.epub
-#   File size: 0.2 MB
-#   Chapters: 10
+  --cover-svg
 ```
 
 **最佳实践**：
-- ✅ 文章按章节编号（01-、02-...）确保顺序
-- ✅ 使用 `--cover-html` 自动生成精美封面
-- ✅ 副标题概括核心内容
-- ✅ 纯文本传记约 0.2 MB，适合快速阅读
-- ✅ 兼容微信读书、Apple Books
+- 文章按章节编号（01-、02-...）确保顺序
+- 副标题概括核心内容
+- 纯文本传记约 0.2 MB，适合快速阅读
+- 兼容微信读书、Apple Books、Kindle
 
-### 场景：技术文集制作
+### 场景：技术文集（Tw93 博客 → EPUB）
 
 ```bash
-# 1. 准备目录结构
-mkdir -p ~/tech-essays/{articles,covers}
-
-# 2. 生成 EPUB（自动生成封面）
-python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
-  --title "我的技术文集" \
-  --subtitle "230篇创业与编程经典" \
-  --author "作者名" \
-  --language zh \
-  --cover-html \
-  ~/tech-essays/articles/ \
-  ~/tech-essays/output.epub
-
-# 3. 验证输出
-ls -lh ~/tech-essays/output.epub
+# 4 篇文章，53 张图片（33 SVG→PNG），约 2.9 MB 输出
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
+  /tmp/tw93_articles/ \
+  ~/Tw93技术文集.epub \
+  --title "Tw93技术文集" \
+  --subtitle "Claude、Agent、LLM 与学习方法论" \
+  --author "Tw93" \
+  --cover-svg \
+  --cover-theme tech \
+  --image-quality 88 \
+  --image-width 1000
 ```
 
-### 场景：多篇文章快速生成
+`--cover-theme tech` 显式覆盖默认的 kami（因为本例希望用深色技术封面）。
 
-```bash
-# 文章目录结构
+### 场景：多篇文章 + 同名配图
+
+```
 ~/my-articles/
   ├── article1.md
-  ├── article1.png  # 配图（可选）
+  ├── article1.png       # 配图（同名自动嵌入）
   ├── article2.md
   ├── article2.png
   └── article3.md
+```
 
-# 一键生成
-python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_v2.py \
+```bash
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
   ~/my-articles/ \
   ~/output.epub
 ```
 
-**自动处理**：
+自动处理：
 - 扫描所有 `.md` 文件
-- 查找同名 `.png` 或 `.jpg` 配图
-- 压缩图片（宽度 1000px，JPEG 88%）
+- 查找同名 `.png` / `.jpg` 配图
+- 压缩图片（默认宽度 1000px，JPEG 88%）
 - 生成目录（TOC）
 - 输出压缩报告
 
@@ -194,105 +166,82 @@ python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_v2.py \
 
 ### 自定义图片压缩
 
-```python
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    image_max_width=800,      # 图片最大宽度（默认 1000px）
-    image_quality=75,         # JPEG 质量（默认 88）
-    convert_png_to_jpg=True   # PNG 转 JPEG（默认 True）
-)
-```
-
-### 自定义排版
-
-```python
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    font_family="'Noto Serif SC', 'Source Han Serif SC', serif",
-    line_height=1.8,          # 行高（默认 1.8）
-    font_size="16px"          # 基础字号（默认 16px）
-)
+```bash
+python3 .../gen_epub_enhanced.py ~/articles ~/output.epub \
+  --image-width 600 \
+  --image-quality 75
 ```
 
 ### 完整元数据
 
-```python
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    title="我的文集",
-    author="作者名",
-    language="zh",            # 语言代码（默认 zh）
-    description="这是一本关于创业和编程的文集",
-    cover_image="~/cover.jpg"
-)
+```bash
+python3 .../gen_epub_enhanced.py ~/articles ~/output.epub \
+  --title "我的文集" \
+  --subtitle "副标题" \
+  --author "作者名" \
+  --language zh \
+  --cover-svg
 ```
 
 ## 输出验证
-
-### 检查 EPUB 文件
 
 ```bash
 # 查看文件大小
 ls -lh ~/output.epub
 
-# 验证章节数（需要 Python）
+# 验证章节数
 python3 -c "
 from ebooklib import epub
-book = epub.read_epub('~/output.epub')
-print(f'章节数: {len([item for item in book.items if isinstance(item, epub.EpubHtml)])}')
+book = epub.read_epub('$HOME/output.epub')
+chapters = [i for i in book.items if isinstance(i, epub.EpubHtml)]
+print(f'章节数: {len(chapters)}')
 "
 
 # 在 Apple Books 中打开
 open ~/output.epub
 ```
 
-### 压缩报告示例
-
-```
-图片压缩报告：
-- 原始总大小: 460.8 MB
-- 压缩后大小: 45.2 MB
-- 压缩率: 90.2%
-- 处理图片数: 230 张
-```
-
 ## 常见问题
 
-### Q: 图片太大，EPUB 文件超过 100MB？
+### Q: 图片太大，EPUB 超过 100MB？
 
-**A**: 调整压缩参数：
+降低 `--image-width` 和 `--image-quality`：
 
-```python
-generate_epub(
-    input_dir="~/articles",
-    output_file="~/output.epub",
-    image_max_width=600,      # 降低宽度
-    image_quality=70          # 降低质量
-)
+```bash
+python3 .../gen_epub_enhanced.py ~/articles ~/output.epub \
+  --image-width 600 --image-quality 70
 ```
 
 ### Q: 微信读书显示不正常？
 
-**A**: 使用 `gen_epub_v2.py`（微信读书优化版）：
-- 使用 `<h2>` 作为章节标题
-- 简化 CSS
-- 图片居中对齐
+用基础版 `gen_epub.py`，CSS 简化更兼容：
+
+```bash
+python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub.py \
+  ~/articles/ ~/output.epub \
+  --title "我的书" --author "作者"
+```
 
 ### Q: 如何批量生成多本书？
-
-**A**: 使用 Shell 脚本：
 
 ```bash
 #!/bin/bash
 for dir in ~/books/*/; do
   book_name=$(basename "$dir")
-  python3 ~/.claude/skills/epub-book-generator/scripts/gen_epub_v2.py \
+  python3 ~/.claude/skills/qiaomu-epub-book-generator/scripts/gen_epub_enhanced.py \
     "$dir" \
-    ~/output/"$book_name".epub
+    ~/output/"$book_name".epub \
+    --title "$book_name" \
+    --cover-svg
 done
+```
+
+### Q: 想给所有书统一用浅色封面？
+
+直接用默认（kami 已是默认主题）。如果某本书因为关键词被自动识别成 tech/business 等深色主题，可显式指定：
+
+```bash
+--cover-theme kami
 ```
 
 ## 技术细节
@@ -302,15 +251,17 @@ done
 - 支持标准 Markdown 语法
 - 自动提取 frontmatter 元数据
 - 保留代码块、引用、列表等格式
+- `gen_epub_enhanced.py` 额外支持 GFM 表格、内联代码、列表嵌套
 
 ### 图片处理流程
 
-1. 扫描 Markdown 文件，查找同名图片
-2. 使用 Pillow 加载图片
-3. 按比例缩放到指定宽度
-4. 转换为 JPEG（可选）
-5. 压缩到指定质量
-6. 嵌入 XHTML 章节
+1. 扫描 Markdown 文件，识别远程 URL 和本地路径
+2. 远程 URL 用 urllib 下载，SVG 用 Playwright 渲染为 PNG
+3. 使用 Pillow 加载图片
+4. 按比例缩放到 `--image-width`
+5. 转换为 JPEG（RGBA 透明区域填充白色）
+6. 压缩到 `--image-quality`
+7. 嵌入 XHTML 章节
 
 ### EPUB 结构
 
@@ -327,7 +278,7 @@ output.epub
 │   ├── images/
 │   │   ├── img1.jpg
 │   │   └── img2.jpg
-│   └── style.css         # 样式表
+│   └── cover.jpg         # 封面（如有）
 └── mimetype
 ```
 

@@ -120,7 +120,7 @@ python3 gen_epub_enhanced.py ~/articles ~/book.epub \
 | `--cover` | Cover image path | None |
 | `--cover-svg` | Generate SVG cover (KDP 1600x2560) | `False` |
 | `--cover-html` | Generate HTML cover | `False` |
-| `--cover-theme` | Cover theme: tech, business, design, literature, science, personal | Auto-detect |
+| `--cover-theme` | Cover theme: kami, tech, business, design, literature, science, personal | Auto-detect (kami fallback) |
 | `--cover-layout` | SVG layout: minimal, classic, modern | `minimal` |
 | `--image-quality` | JPEG quality (1-100) | `88` |
 | `--image-width` | Max image width (pixels) | `1000` |
@@ -129,6 +129,7 @@ python3 gen_epub_enhanced.py ~/articles ~/book.epub \
 
 | Theme | Keywords | Style |
 |-------|----------|-------|
+| `kami` | (default fallback, editorial style) | Parchment + ink-blue serif |
 | `tech` | programming, AI, code, algorithm | Deep navy + cyan |
 | `business` | startup, marketing, growth, product | Deep blue + gold |
 | `design` | design, UI/UX, visual, brand | Deep purple + pink |
@@ -288,7 +289,7 @@ python3 gen_epub_enhanced.py ~/articles ~/book.epub \
 | `--cover` | 封面图片路径 | 无 |
 | `--cover-svg` | 生成 SVG 封面（KDP 1600x2560） | `False` |
 | `--cover-html` | 生成 HTML 封面 | `False` |
-| `--cover-theme` | 封面主题：tech, business, design, literature, science, personal | 自动检测 |
+| `--cover-theme` | 封面主题：kami, tech, business, design, literature, science, personal | 自动检测，未命中关键词时回退到 kami |
 | `--cover-layout` | SVG 布局：minimal, classic, modern | `minimal` |
 | `--image-quality` | JPEG 压缩质量 (1-100) | `88` |
 | `--image-width` | 图片最大宽度（像素） | `1000` |
@@ -297,6 +298,7 @@ python3 gen_epub_enhanced.py ~/articles ~/book.epub \
 
 | 主题 | 关键词 | 风格 |
 |------|--------|------|
+| `kami` | （默认兜底，编辑感） | 羊皮纸 + 墨蓝 serif |
 | `tech` | 编程、AI、代码、算法 | 深蓝 + 青色 |
 | `business` | 创业、营销、增长、产品 | 深蓝 + 金色 |
 | `design` | 设计、UI/UX、视觉、品牌 | 深紫 + 粉色 |

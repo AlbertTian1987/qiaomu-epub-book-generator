@@ -10,42 +10,70 @@ import re
 from pathlib import Path
 
 # Theme definitions with keywords and visual styles
+# is_light=True 表示浅色背景封面，关闭文字阴影、用暖色边框、用本地 serif 栈避免 Google Fonts 依赖
 THEMES = {
+    "kami": {
+        "keywords": [],
+        "gradient": "linear-gradient(180deg, #f5f4ed 0%, #ece9d8 100%)",
+        "accent": "#1B365D",
+        "pattern": "lines",
+        "text_color": "#141413",
+        "subtitle_color": "#504e49",
+        "is_light": True
+    },
     "tech": {
         "keywords": ["技术", "编程", "代码", "开发", "AI", "Claude", "Agent", "LLM", "算法", "架构", "前端", "后端", "数据", "机器学习"],
         "gradient": "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
         "accent": "#00d4ff",
-        "pattern": "circuit"
+        "pattern": "circuit",
+        "text_color": "#ffffff",
+        "subtitle_color": "#e0e0e0",
+        "is_light": False
     },
     "business": {
         "keywords": ["创业", "商业", "管理", "营销", "增长", "产品", "运营", "战略", "投资", "融资"],
         "gradient": "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
         "accent": "#f39c12",
-        "pattern": "grid"
+        "pattern": "grid",
+        "text_color": "#ffffff",
+        "subtitle_color": "#e8e8e8",
+        "is_light": False
     },
     "design": {
         "keywords": ["设计", "美学", "艺术", "视觉", "UI", "UX", "品牌", "创意", "排版"],
         "gradient": "linear-gradient(135deg, #2d1b69 0%, #5b247a 50%, #8b3a8b 100%)",
         "accent": "#ff6b9d",
-        "pattern": "dots"
+        "pattern": "dots",
+        "text_color": "#ffffff",
+        "subtitle_color": "#f0e6ff",
+        "is_light": False
     },
     "literature": {
         "keywords": ["文学", "小说", "诗歌", "散文", "故事", "传记", "历史", "哲学", "思想"],
         "gradient": "linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e8ba3 100%)",
         "accent": "#ffd89b",
-        "pattern": "lines"
+        "pattern": "lines",
+        "text_color": "#ffffff",
+        "subtitle_color": "#e8e8e8",
+        "is_light": False
     },
     "science": {
         "keywords": ["科学", "物理", "化学", "生物", "数学", "研究", "实验", "理论", "发现"],
         "gradient": "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",
         "accent": "#a8e6cf",
-        "pattern": "hexagon"
+        "pattern": "hexagon",
+        "text_color": "#ffffff",
+        "subtitle_color": "#e8f5e9",
+        "is_light": False
     },
     "personal": {
         "keywords": ["成长", "学习", "方法", "思考", "笔记", "总结", "反思", "日记", "随笔"],
         "gradient": "linear-gradient(135deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%)",
         "accent": "#ffeaa7",
-        "pattern": "wave"
+        "pattern": "wave",
+        "text_color": "#ffffff",
+        "subtitle_color": "#fff3e0",
+        "is_light": False
     }
 }
 
@@ -58,9 +86,9 @@ def detect_theme(title, subtitle="", author=""):
         score = sum(1 for keyword in theme_data["keywords"] if keyword.lower() in text)
         scores[theme_name] = score
 
-    # Return theme with highest score, default to "tech"
+    # 没匹配到关键词时兜底 kami（编辑感羊皮纸风）
     best_theme = max(scores, key=scores.get)
-    return best_theme if scores[best_theme] > 0 else "tech"
+    return best_theme if scores[best_theme] > 0 else "kami"
 
 def get_pattern_svg(pattern_type, accent_color):
     """Generate SVG pattern based on type."""
@@ -138,10 +166,29 @@ def generate_cover_html(title, subtitle="", author="", output_path="/tmp/cover.h
     if theme is None:
         theme = detect_theme(title, subtitle, author)
 
-    theme_data = THEMES.get(theme, THEMES["tech"])
+    theme_data = THEMES.get(theme, THEMES["kami"])
     gradient = theme_data["gradient"]
     accent = theme_data["accent"]
     pattern = get_pattern_svg(theme_data["pattern"], accent)
+    text_color = theme_data.get("text_color", "#ffffff")
+    subtitle_color = theme_data.get("subtitle_color", "#e0e0e0")
+    is_light = theme_data.get("is_light", False)
+
+    # 浅色主题（kami）：用本地 serif 栈避免在线 Google Fonts，去阴影、用暖色边框
+    if is_light:
+        font_import = ""
+        font_family = '"Charter", "Iowan Old Style", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif'
+        title_text_shadow = "none"
+        author_text_shadow = "none"
+        separator_box_shadow = "none"
+        border_color = "#e8e6dc"
+    else:
+        font_import = "@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');"
+        font_family = "'Noto Serif SC', serif"
+        title_text_shadow = "0 4px 30px rgba(0,0,0,0.5)"
+        author_text_shadow = f"0 0 20px {accent}60"
+        separator_box_shadow = f"0 0 20px {accent}80"
+        border_color = "#888"
 
     print(f"🎨 Detected theme: {theme}")
 
@@ -151,7 +198,7 @@ def generate_cover_html(title, subtitle="", author="", output_path="/tmp/cover.h
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1600, initial-scale=1.0">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&display=swap');
+{font_import}
 
 * {{
     margin: 0;
@@ -163,7 +210,7 @@ body {{
     width: 1600px;
     height: 2560px;
     background: {gradient};
-    font-family: 'Noto Serif SC', serif;
+    font-family: {font_family};
     position: relative;
     overflow: hidden;
 }}
@@ -215,17 +262,17 @@ body {{
 .title {{
     font-size: 96px;
     font-weight: 900;
-    color: #ffffff;
+    color: {text_color};
     line-height: 1.2;
     letter-spacing: 0.02em;
-    text-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    text-shadow: {title_text_shadow};
     margin-bottom: 60px;
 }}
 
 .subtitle {{
     font-size: 36px;
     font-weight: 400;
-    color: #e0e0e0;
+    color: {subtitle_color};
     line-height: 1.5;
     opacity: 0.9;
 }}
@@ -245,7 +292,7 @@ body {{
     font-weight: 400;
     color: {accent};
     letter-spacing: 0.15em;
-    text-shadow: 0 0 20px {accent}60;
+    text-shadow: {author_text_shadow};
 }}
 
 /* Separator line above author */
@@ -254,7 +301,7 @@ body {{
     height: 3px;
     background: linear-gradient(90deg, transparent, {accent}, transparent);
     margin: 0 auto 40px;
-    box-shadow: 0 0 20px {accent}80;
+    box-shadow: {separator_box_shadow};
 }}
 
 /* KDP border */
@@ -264,7 +311,7 @@ body {{
     left: 2px;
     right: 2px;
     bottom: 2px;
-    border: 3px solid #888;
+    border: 3px solid {border_color};
     opacity: 0.3;
     z-index: 3;
     pointer-events: none;

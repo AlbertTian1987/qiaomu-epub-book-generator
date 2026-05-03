@@ -28,58 +28,70 @@ from PIL import Image
 import io
 
 
-# Enhanced CSS with code block and table styling
+# Kami 设计语言（羊皮纸 + 墨蓝 + serif），不设 body 背景以兼容阅读器暗色模式
 CHAPTER_CSS = """
 body {
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-    line-height: 1.8;
+    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    line-height: 1.55;
     margin: 1em;
     padding: 0;
     font-size: 1em;
-    color: #1a1a1a;
+    color: #141413;
+    letter-spacing: 0.02em;
+}
+h1, h2, h3, h4 {
+    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+    font-weight: 500;
+    color: #141413;
 }
 h1 {
-    font-size: 1.6em;
-    font-weight: bold;
-    margin: 0 0 0.5em 0;
-    color: #111;
-    line-height: 1.3;
+    font-size: 1.7em;
+    line-height: 1.20;
+    margin: 0 0 1em 0;
+    border-left: 2.5pt solid #1B365D;
+    border-radius: 1.5pt;
+    padding-left: 0.5em;
 }
 h2 {
     font-size: 1.3em;
-    font-weight: bold;
-    margin: 1.5em 0 0.5em 0;
-    color: #222;
+    line-height: 1.25;
+    margin: 1.8em 0 0.6em 0;
+    border-left: 2pt solid #1B365D;
+    padding-left: 0.45em;
 }
 h3 {
     font-size: 1.1em;
-    font-weight: bold;
-    margin: 1.2em 0 0.4em 0;
-    color: #333;
+    line-height: 1.30;
+    margin: 1.4em 0 0.4em 0;
+    color: #3d3d3a;
 }
 h4 {
-    font-size: 1.05em;
-    font-weight: bold;
-    margin: 1em 0 0.3em 0;
-    color: #444;
+    font-size: 1em;
+    line-height: 1.35;
+    margin: 1.1em 0 0.3em 0;
+    color: #504e49;
 }
 p {
-    margin: 0 0 0.8em 0;
+    margin: 0 0 0.85em 0;
     text-align: justify;
 }
 strong, b {
-    font-weight: bold;
-    color: #000;
+    font-weight: 600;
+    color: #141413;
 }
 em, i {
     font-style: italic;
+    color: #3d3d3a;
 }
+/* Kami 引用：墨蓝左边栏 + olive 文字，无背景填充 */
 blockquote {
-    border-left: 3px solid #ccc;
-    padding-left: 1em;
+    border-left: 2pt solid #1B365D;
+    padding: 0.2em 0 0.2em 1em;
     margin: 1em 0;
-    color: #444;
-    background: #f9f9f9;
+    color: #504e49;
+    line-height: 1.55;
 }
 img {
     max-width: 100%;
@@ -88,9 +100,10 @@ img {
     margin: 1em auto;
 }
 .metadata {
-    color: #666;
+    color: #6b6a64;
     font-size: 0.85em;
     margin-bottom: 1em;
+    font-style: italic;
 }
 .card-img {
     text-align: center;
@@ -98,59 +111,61 @@ img {
 }
 hr {
     border: none;
-    border-top: 1px solid #ddd;
-    margin: 1.5em 0;
+    border-top: 0.5pt solid #e8e6dc;
+    margin: 2em 0;
 }
-/* Code blocks */
+/* Kami 代码块：ivory 底 + 暖色边 + 墨蓝左边栏 */
 pre {
-    background: #f8f8f8;
-    border-left: 3px solid #0066cc;
-    border-radius: 4px;
-    padding: 1em;
+    background: #faf9f5;
+    border: 0.5pt solid #e8e6dc;
+    border-left: 2pt solid #1B365D;
+    border-radius: 4pt;
+    padding: 0.9em 1em;
     overflow-x: auto;
     margin: 1em 0;
-    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Fira Mono",
-                 "Roboto Mono", "Consolas", "Courier New", monospace;
+    font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas",
+                 "Source Han Serif SC", "Noto Serif CJK SC", monospace;
     font-size: 0.85em;
-    line-height: 1.4;
+    line-height: 1.45;
     tab-size: 2;
+    color: #141413;
 }
+/* 行内代码：ivory 底 + 墨蓝字 */
 code {
-    font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Fira Mono",
-                 "Roboto Mono", "Consolas", "Courier New", monospace;
+    font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas",
+                 "Source Han Serif SC", "Noto Serif CJK SC", monospace;
     font-size: 0.9em;
-    background: #f0f0f0;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
+    background: #faf9f5;
+    padding: 0.15em 0.4em;
+    border-radius: 3pt;
+    color: #1B365D;
 }
 pre code {
     background: none;
     padding: 0;
+    color: inherit;
 }
-/* Tables */
+/* Kami 表格：无填充表头，1pt 暖色下划线，无斑马纹 */
 table {
     border-collapse: collapse;
     width: 100%;
     margin: 1em 0;
-    font-size: 0.9em;
-}
-th, td {
-    border: 1px solid #ddd;
-    padding: 0.5em;
-    text-align: left;
+    font-size: 0.92em;
+    line-height: 1.5;
 }
 th {
-    background-color: #0066cc;
-    color: white;
-    font-weight: bold;
+    text-align: left;
+    font-weight: 500;
+    color: #3d3d3a;
+    padding: 0.5em 0.6em;
+    border-bottom: 1pt solid #e8e6dc;
+    background: transparent;
 }
-tbody tr:nth-child(even) {
-    background-color: #f8f9fa;
+td {
+    padding: 0.4em 0.6em;
+    border-bottom: 0.3pt solid #e5e3d8;
+    vertical-align: top;
 }
-tbody tr:hover {
-    background-color: #f0f0f0;
-}
-/* Lists */
 ul, ol {
     margin: 0.5em 0 1em 1.5em;
     padding: 0;
@@ -158,7 +173,7 @@ ul, ol {
 li {
     margin: 0.3em 0;
 }
-/* Override Pygments error token red border */
+/* 抑制 Pygments 错误 token 的红框（已知 bug） */
 .codehilite span[style*="border: 1px solid #FF0000"] {
     border: none !important;
 }
@@ -615,9 +630,7 @@ def build_xhtml(title, metadata, image_html, body_html):
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>{escaped_title}</title>
-<style type="text/css">
-{CHAPTER_CSS}
-</style>
+<link rel="stylesheet" type="text/css" href="style.css" />
 </head>
 <body>
 <h1>{escaped_title}</h1>
@@ -711,6 +724,15 @@ def create_epub(args):
     book.set_identifier(f'epub-{title.replace(" ", "-").lower()[:30]}')
     book.set_title(title)
     book.set_language(args.language)
+
+    # 注册 Kami 设计语言 CSS 为独立 style.css 资源（ebooklib 会丢弃内联 <style>）
+    css_item = epub.EpubItem(
+        uid="style_css",
+        file_name="style.css",
+        media_type="text/css",
+        content=CHAPTER_CSS,
+    )
+    book.add_item(css_item)
 
     if args.author:
         for a in args.author.split('/'):
@@ -816,6 +838,7 @@ def create_epub(args):
                     lang=args.language
                 )
                 chapter.set_content(chapter_html.encode('utf-8'))
+                chapter.add_item(css_item)
 
                 book.add_item(chapter)
                 chapters.append(chapter)
@@ -864,6 +887,7 @@ def create_epub(args):
                 lang=args.language
             )
             chapter.set_content(chapter_html.encode('utf-8'))
+            chapter.add_item(css_item)
 
             book.add_item(chapter)
             chapters.append(chapter)

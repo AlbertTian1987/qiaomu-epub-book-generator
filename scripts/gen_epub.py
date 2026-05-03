@@ -35,60 +35,73 @@ from PIL import Image
 import io
 
 
-# ─── CSS (inline for max WeChat Reading compatibility) ───
+# ─── Kami 设计语言 CSS（WeChat 兼容简化版，无背景色） ───
 CHAPTER_CSS = """
 body {
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-    line-height: 1.8;
+    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
+    line-height: 1.55;
     margin: 1em;
     padding: 0;
     font-size: 1em;
-    color: #1a1a1a;
+    color: #141413;
+    letter-spacing: 0.02em;
+}
+h1, h2, h3 {
+    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
+                 "Noto Serif CJK SC", "Songti SC", Georgia, serif;
+    font-weight: 500;
+    color: #141413;
 }
 h1 {
-    font-size: 1.6em;
-    font-weight: bold;
-    margin: 0 0 0.5em 0;
-    color: #111;
-    line-height: 1.3;
+    font-size: 1.7em;
+    line-height: 1.20;
+    margin: 0 0 1em 0;
+    border-left: 2.5pt solid #1B365D;
+    border-radius: 1.5pt;
+    padding-left: 0.5em;
 }
 h2 {
     font-size: 1.3em;
-    font-weight: bold;
-    margin: 1.5em 0 0.5em 0;
-    color: #222;
+    line-height: 1.25;
+    margin: 1.8em 0 0.6em 0;
+    border-left: 2pt solid #1B365D;
+    padding-left: 0.45em;
 }
 h3 {
     font-size: 1.1em;
-    font-weight: bold;
-    margin: 1.2em 0 0.4em 0;
-    color: #333;
+    line-height: 1.30;
+    margin: 1.4em 0 0.4em 0;
+    color: #3d3d3a;
 }
 p {
-    margin: 0 0 0.8em 0;
+    margin: 0 0 0.85em 0;
     text-align: justify;
 }
 strong, b {
-    font-weight: bold;
-    color: #000;
+    font-weight: 600;
+    color: #141413;
 }
 em, i {
     font-style: italic;
+    color: #3d3d3a;
 }
 blockquote {
-    border-left: 3px solid #ccc;
-    padding-left: 1em;
+    border-left: 2pt solid #1B365D;
+    padding: 0.2em 0 0.2em 1em;
     margin: 1em 0;
-    color: #444;
+    color: #504e49;
+    line-height: 1.55;
 }
 img {
     max-width: 100%;
     height: auto;
 }
 .metadata {
-    color: #666;
+    color: #6b6a64;
     font-size: 0.85em;
     margin-bottom: 1em;
+    font-style: italic;
 }
 .card-img {
     text-align: center;
@@ -96,8 +109,8 @@ img {
 }
 hr {
     border: none;
-    border-top: 1px solid #ddd;
-    margin: 1.5em 0;
+    border-top: 0.5pt solid #e8e6dc;
+    margin: 2em 0;
 }
 """
 
@@ -169,9 +182,7 @@ def build_xhtml(title, metadata, image_html, body_html):
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title>{escaped_title}</title>
-<style type="text/css">
-{CHAPTER_CSS}
-</style>
+<link rel="stylesheet" type="text/css" href="style.css" />
 </head>
 <body>
 <h1>{escaped_title}</h1>
@@ -254,6 +265,15 @@ def create_epub(args):
     book.set_title(title)
     book.set_language(args.language)
 
+    # 注册 Kami 设计语言 CSS 为独立 style.css 资源（ebooklib 会丢弃内联 <style>）
+    css_item = epub.EpubItem(
+        uid="style_css",
+        file_name="style.css",
+        media_type="text/css",
+        content=CHAPTER_CSS,
+    )
+    book.add_item(css_item)
+
     if args.author:
         for a in args.author.split('/'):
             book.add_author(a.strip())
@@ -319,6 +339,7 @@ def create_epub(args):
             lang=args.language
         )
         chapter.set_content(chapter_html.encode('utf-8'))
+        chapter.add_item(css_item)
 
         book.add_item(chapter)
         chapters.append(chapter)

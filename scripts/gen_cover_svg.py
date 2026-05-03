@@ -11,14 +11,25 @@ import hashlib
 from pathlib import Path
 
 # Theme definitions with professional book cover color palettes
+# is_light=True 表示浅色背景封面，跳过 Google Fonts、用暖色边框
 THEMES = {
+    "kami": {
+        "keywords": [],
+        "primary": "#f5f4ed",      # 羊皮纸
+        "secondary": "#ece9d8",    # 微暗
+        "accent": "#1B365D",       # 墨蓝
+        "text": "#141413",
+        "subtitle_text": "#504e49",
+        "is_light": True
+    },
     "tech": {
         "keywords": ["技术", "编程", "代码", "开发", "ai", "claude", "agent", "llm", "算法", "架构", "前端", "后端", "数据", "机器学习"],
         "primary": "#1a1a2e",      # Deep navy
         "secondary": "#16213e",    # Dark blue
         "accent": "#00d4ff",       # Cyan
         "text": "#ffffff",
-        "subtitle_text": "#e0e0e0"
+        "subtitle_text": "#e0e0e0",
+        "is_light": False
     },
     "business": {
         "keywords": ["创业", "商业", "管理", "营销", "增长", "产品", "运营", "战略", "投资", "融资"],
@@ -26,7 +37,8 @@ THEMES = {
         "secondary": "#16213e",
         "accent": "#f39c12",       # Gold
         "text": "#ffffff",
-        "subtitle_text": "#e8e8e8"
+        "subtitle_text": "#e8e8e8",
+        "is_light": False
     },
     "design": {
         "keywords": ["设计", "美学", "艺术", "视觉", "ui", "ux", "品牌", "创意", "排版"],
@@ -34,7 +46,8 @@ THEMES = {
         "secondary": "#5b247a",
         "accent": "#ff6b9d",       # Pink
         "text": "#ffffff",
-        "subtitle_text": "#f0e6ff"
+        "subtitle_text": "#f0e6ff",
+        "is_light": False
     },
     "literature": {
         "keywords": ["文学", "小说", "诗歌", "散文", "故事", "传记", "历史", "哲学", "思想"],
@@ -42,7 +55,8 @@ THEMES = {
         "secondary": "#2a5298",
         "accent": "#ffd89b",       # Warm yellow
         "text": "#ffffff",
-        "subtitle_text": "#e8e8e8"
+        "subtitle_text": "#e8e8e8",
+        "is_light": False
     },
     "science": {
         "keywords": ["科学", "物理", "化学", "生物", "数学", "研究", "实验", "理论", "发现"],
@@ -50,7 +64,8 @@ THEMES = {
         "secondary": "#71b280",
         "accent": "#a8e6cf",       # Mint
         "text": "#ffffff",
-        "subtitle_text": "#e8f5e9"
+        "subtitle_text": "#e8f5e9",
+        "is_light": False
     },
     "personal": {
         "keywords": ["成长", "学习", "方法", "思考", "笔记", "总结", "反思", "日记", "随笔"],
@@ -58,7 +73,8 @@ THEMES = {
         "secondary": "#d76d77",
         "accent": "#ffaf7b",       # Peach
         "text": "#ffffff",
-        "subtitle_text": "#fff3e0"
+        "subtitle_text": "#fff3e0",
+        "is_light": False
     }
 }
 
@@ -104,7 +120,7 @@ def detect_theme(title, subtitle="", author=""):
         scores[theme_name] = score
 
     best_theme = max(scores, key=scores.get)
-    return best_theme if scores[best_theme] > 0 else "tech"
+    return best_theme if scores[best_theme] > 0 else "kami"
 
 
 def wrap_chinese_text(text, max_chars_per_line=12):
@@ -196,8 +212,19 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
     if theme is None:
         theme = detect_theme(title, subtitle, author)
 
-    theme_colors = THEMES.get(theme, THEMES["tech"])
+    theme_colors = THEMES.get(theme, THEMES["kami"])
     layout_config = LAYOUTS.get(layout, LAYOUTS["minimal"])
+
+    is_light = theme_colors.get("is_light", False)
+    # 浅色主题（kami）跳过 Google Fonts、用本地 serif 栈、用暖色 KDP 边框
+    if is_light:
+        font_import = ""
+        font_family_css = '"Charter", "Iowan Old Style", "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", Georgia, serif'
+        border_stroke = "#e8e6dc"
+    else:
+        font_import = "@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&amp;display=swap');"
+        font_family_css = "'Noto Serif SC', serif"
+        border_stroke = "#888"
 
     print(f"🎨 Theme: {theme} | Layout: {layout}")
 
@@ -252,10 +279,10 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
     </filter>
 
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&amp;display=swap');
+      {font_import}
 
       .title {{
-        font-family: 'Noto Serif SC', serif;
+        font-family: {font_family_css};
         font-size: {layout_config['title_size']};
         font-weight: 900;
         fill: {theme_colors['text']};
@@ -264,7 +291,7 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
       }}
 
       .subtitle {{
-        font-family: 'Noto Serif SC', serif;
+        font-family: {font_family_css};
         font-size: {layout_config['subtitle_size']};
         font-weight: 400;
         fill: {theme_colors['subtitle_text']};
@@ -273,7 +300,7 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
       }}
 
       .author {{
-        font-family: 'Noto Serif SC', serif;
+        font-family: {font_family_css};
         font-size: {layout_config['author_size']};
         font-weight: 400;
         fill: {theme_colors['accent']};
@@ -301,7 +328,7 @@ def generate_svg_cover(title, subtitle="", author="", output_path="/tmp/cover.sv
 
   <!-- Border (KDP recommendation for light covers) -->
   <rect x="2" y="2" width="{width-4}" height="{height-4}"
-        fill="none" stroke="#888" stroke-width="3" opacity="0.3"/>
+        fill="none" stroke="{border_stroke}" stroke-width="3" opacity="0.3"/>
 </svg>'''
 
     with open(output_path, 'w', encoding='utf-8') as f:
