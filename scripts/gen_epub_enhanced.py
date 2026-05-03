@@ -417,10 +417,14 @@ def download_image(url, timeout=15):
         return None
 
 
-def extract_and_download_images(markdown_text, book, image_width=1000, jpeg_quality=88):
+def extract_and_download_images(markdown_text, book, image_width=1000, jpeg_quality=88, base_dir=None):
     """
-    Extract image URLs from Markdown, download them, add to EPUB, and replace URLs.
-    Returns: (modified_markdown, image_count, total_size)
+    从 Markdown 中提取图片 URL，下载后加入 EPUB，并替换原 URL。
+    返回：(modified_markdown, image_count, total_size)
+
+    base_dir：源 Markdown 文件所在目录。提供后，对没有 URL scheme（如
+    ``521_images/521_01.png``）的图片引用会基于该目录解析为本地路径，
+    避免把这种裸相对路径误当作远程 URL。
     """
     # Find all image references: ![alt](url)
     img_pattern = r'!\[([^\]]*)\]\(([^)]+)\)'
@@ -440,8 +444,20 @@ def extract_and_download_images(markdown_text, book, image_width=1000, jpeg_qual
         if img_url in downloaded_images:
             continue
 
+        # 裸相对路径（无 URL scheme、且不以 / ./ ../ 开头）基于 base_dir 解析为绝对路径，
+        # 否则后续 download_image 中的 os.path.exists 判断会受 cwd 影响而找不到文件。
+        download_url = img_url
+        if (
+            base_dir
+            and not re.match(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:', img_url)
+            and not img_url.startswith(('/', './', '../'))
+        ):
+            candidate = os.path.join(base_dir, img_url)
+            if os.path.exists(candidate):
+                download_url = candidate
+
         # Download image
-        img_data = download_image(img_url)
+        img_data = download_image(download_url)
         if not img_data:
             continue
 
@@ -756,6 +772,7 @@ def create_epub(args):
     chapter_num = 0
     for i, md_path in enumerate(md_files, 1):
         slug = Path(md_path).stem
+        md_dir = os.path.dirname(os.path.abspath(md_path))
 
         if should_split and chapter_list:
             # Process split chapters from single file
@@ -765,7 +782,7 @@ def create_epub(args):
 
                 # Download and embed images from Markdown
                 ch_body, img_count, img_size = extract_and_download_images(
-                    ch_body, book, args.image_width, args.image_quality
+                    ch_body, book, args.image_width, args.image_quality, base_dir=md_dir
                 )
                 total_img_count += img_count
                 total_img_size += img_size
@@ -813,7 +830,7 @@ def create_epub(args):
 
             # Download and embed images from Markdown
             body, img_count, img_size = extract_and_download_images(
-                body, book, args.image_width, args.image_quality
+                body, book, args.image_width, args.image_quality, base_dir=md_dir
             )
             total_img_count += img_count
             total_img_size += img_size
