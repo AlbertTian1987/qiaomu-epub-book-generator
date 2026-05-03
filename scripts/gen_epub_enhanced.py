@@ -63,13 +63,17 @@ CHAPTER_CSS = """
 }
 
 /* --- 2. Base --- */
-html, body {
+html {
+    background: var(--paper);
+    min-height: 100%;
+}
+body {
     background: var(--paper);
     color: var(--text);
     font-family: "Charter Embedded", "Charter", "Iowan Old Style", "Source Han Serif SC",
                  "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
     line-height: 1.65;
-    margin: 1em;
+    margin: 0;
     padding: 0;
     font-size: 1em;
     text-align: justify;
@@ -78,8 +82,13 @@ html, body {
     font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
     text-rendering: optimizeLegibility;
     line-break: strict;
-    word-break: keep-all;
+    word-break: normal;
+    overflow-wrap: break-word;
     hanging-punctuation: allow-end last;
+}
+.kami-root {
+    background: var(--paper);
+    min-height: 100%;
 }
 
 .kami-root.mode-literary {
@@ -106,7 +115,7 @@ html[lang^="en"] em, html[lang^="en"] i {
 }
 
 /* --- 3. Paragraphs --- */
-p { margin: 0; text-indent: 2em; text-align: justify; }
+p { margin: 0; text-indent: 1.5em; text-align: justify; }
 
 /* 章首/引用后/场景分隔后第一段不缩进 */
 .chapter-ornament + p, blockquote + p, .scene-break + p,
