@@ -336,8 +336,9 @@ def download_image(url, timeout=15):
         url_path = url.split('?')[0].lower()
         is_svg = url_path.endswith('.svg')
 
-        # Handle local file paths
-        if url.startswith('/') or url.startswith('./') or url.startswith('../'):
+        # 处理本地文件路径：所有非 HTTP/HTTPS URL 都视作本地路径
+        # 修复：原条件仅匹配 /、./、../ 前缀，遗漏了形如 020_images/020_01.jpg 的相对路径
+        if not url.startswith(('http://', 'https://')):
             if not os.path.exists(url):
                 print(f"  Warning: Local file not found: {url}")
                 return None
@@ -725,7 +726,9 @@ def create_epub(args):
     # Process articles
     chapters = []
     toc_items = []
-    spine = ['nav']
+    # 修复：spine 留空，由 ebooklib 自动处理导航文档；
+    # 原先手动设置 ['nav'] 但未在 manifest 创建 id="nav" 项，导致部分阅读器解析失败、不渲染图片
+    spine = []
     total_img_size = 0
     total_img_count = 0
 
