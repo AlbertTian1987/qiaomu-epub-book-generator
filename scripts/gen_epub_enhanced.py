@@ -63,9 +63,15 @@ CHAPTER_CSS = """
 }
 
 /* --- 2. Base --- */
+@page {
+    margin: 0;
+    padding: 0;
+}
 html {
     background: var(--paper);
-    min-height: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
 body {
     background: var(--paper);
@@ -74,7 +80,9 @@ body {
                  "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
     line-height: 1.65;
     margin: 0;
-    padding: 0;
+    padding: 5%;
+    min-height: 100%;
+    height: 100%;
     font-size: 1em;
     text-align: left;
     widows: 2;
@@ -89,6 +97,7 @@ body {
 .kami-root {
     background: var(--paper);
     min-height: 100%;
+    height: 100%;
 }
 
 .kami-root.mode-literary {
