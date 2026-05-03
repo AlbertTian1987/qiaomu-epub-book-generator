@@ -63,14 +63,9 @@ CHAPTER_CSS = """
 }
 
 /* --- 2. Base --- */
-@page {
-    margin: 2%;
-}
 html {
-    background: var(--paper);
 }
 body {
-    background: var(--paper);
     color: var(--text);
     font-family: "Charter Embedded", "Charter", "Iowan Old Style", "Source Han Serif SC",
                  "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
@@ -89,7 +84,6 @@ body {
     hanging-punctuation: allow-end last;
 }
 .kami-root {
-    background: var(--paper);
 }
 
 .kami-root.mode-literary {
