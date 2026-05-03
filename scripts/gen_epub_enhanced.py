@@ -22,6 +22,7 @@ import hashlib
 import urllib.request
 import urllib.parse
 from pathlib import Path
+from datetime import datetime
 from ebooklib import epub
 import markdown
 from PIL import Image
@@ -783,6 +784,22 @@ def normalize_punctuation(text):
     return text
 
 
+def protect_number_unit(text):
+    """在数字和单位之间插入 &nbsp; 防止换行拆分。
+    如 "5 km" → "5&nbsp;km"，"100%" → "100&nbsp;%"
+    注：操作的是 markdown 纯文本，最终 &nbsp; 会在 HTML 渲染中生效。
+    """
+    # 数字 + 空格 + 单位 → 数字 + &nbsp; + 单位
+    # 常用单位: km, cm, mm, kg, g, mg, mb, kb, %, °C, °F, m², m³
+    text = re.sub(
+        r'(\d+)\s+(km|cm|mm|kg|g|mg|mb|kb|%|°[CF]|m²|m³|m|s|h|min|℃|℉)\b',
+        r'\1' + ' ' + r'\2',
+        text, flags=re.IGNORECASE
+    )
+    # 中文数字单位一般不需要处理（"5公里"本身不会换行断开）
+    return text
+
+
 def style_author_notes(html):
     """将章末引用块中的 PS: / 作者按 / 作者注 样式化为 author-note。"""
     html = re.sub(
@@ -960,6 +977,13 @@ def create_epub(args):
     book.set_title(title)
     book.set_language(args.language)
 
+    # 完整 EPUB metadata
+    book.add_metadata('DC', 'publisher', 'Kami Literary')
+    book.add_metadata('DC', 'date', datetime.now().strftime('%Y-%m-%d'))
+    book.add_metadata('DC', 'rights', 'Creative Commons BY-NC 4.0')
+    # 添加 modified date (OPF2.0 required)
+    book.add_metadata('OPF', 'event', datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'), {'attribute': 'modification'})
+
     # 注册 Kami 设计语言 CSS 为独立 style.css 资源（ebooklib 会丢弃内联 <style>）
     css_content = CHAPTER_CSS
     if getattr(args, 'embed_charter', False):
@@ -1044,6 +1068,7 @@ def create_epub(args):
                 # --- P1: 标点归一（--no-punct-fix 可关闭）---
                 if not getattr(args, 'no_punct_fix', False):
                     ch_body_clean = normalize_punctuation(ch_body_clean)
+                ch_body_clean = protect_number_unit(ch_body_clean)
 
                 # Download and embed images from Markdown
                 ch_body_processed, img_count, img_size = extract_and_download_images(
@@ -1126,6 +1151,7 @@ def create_epub(args):
             # --- P1: 标点归一（--no-punct-fix 可关闭）---
             if not getattr(args, 'no_punct_fix', False):
                 body_clean = normalize_punctuation(body_clean)
+            body_clean = protect_number_unit(body_clean)
 
             # Download and embed images from Markdown
             body_processed, img_count, img_size = extract_and_download_images(
