@@ -1143,6 +1143,9 @@ def create_epub(args):
 
                 # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
                 md_html = normalize_scene_breaks(md_html)
+                # 去掉正文开头/末尾的场景分隔符：章首/章末已有 ❦ 花饰，原文的 ＊＊＊ / --- 只会在两端制造冗余的双 ❦
+                md_html = re.sub(r'^(\s*<div class="scene-break">&#10086;</div>\s*)+', '', md_html)
+                md_html = re.sub(r'(\s*<div class="scene-break">&#10086;</div>\s*)+$', '', md_html)
                 md_html = style_author_notes(md_html)
                 if has_unfinished:
                     md_html += '\n<div class="unfinished">（未完待续）</div>'
@@ -1230,6 +1233,9 @@ def create_epub(args):
 
             # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
             md_html = normalize_scene_breaks(md_html)
+            # 去掉正文开头/末尾的场景分隔符：章首/章末已有 ❦ 花饰，原文的 ＊＊＊ / --- 只会在两端制造冗余的双 ❦
+            md_html = re.sub(r'^(\s*<div class="scene-break">&#10086;</div>\s*)+', '', md_html)
+            md_html = re.sub(r'(\s*<div class="scene-break">&#10086;</div>\s*)+$', '', md_html)
             md_html = style_author_notes(md_html)
             if has_unfinished:
                 md_html += '\n<div class="unfinished">（未完待续）</div>'
