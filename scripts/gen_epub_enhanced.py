@@ -76,7 +76,7 @@ body {
     margin: 0;
     padding: 0;
     font-size: 1em;
-    text-align: justify;
+    text-align: left;
     widows: 2;
     orphans: 2;
     font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
@@ -115,7 +115,7 @@ html[lang^="en"] em, html[lang^="en"] i {
 }
 
 /* --- 3. Paragraphs --- */
-p { margin: 0; text-indent: 1.5em; text-align: justify; }
+p { margin: 0; text-indent: 1em; text-align: left; }
 
 /* 章首/引用后/场景分隔后第一段不缩进 */
 .chapter-ornament + p, blockquote + p, .scene-break + p,
