@@ -115,10 +115,8 @@ html[lang^="en"] em, html[lang^="en"] i {
 }
 
 /* --- 3. Paragraphs --- */
-p { margin: 0; text-indent: 1em; text-align: left; }
+p { margin: 0; text-indent: 2em; text-align: left; }
 
-/* 场景分隔后第一段不缩进 */
-blockquote + p, .scene-break + p { text-indent: 0; }
 
 /* --- 4. Chapter Title System (全部居中) --- */
 .chapter-header { text-align: center; margin: 25vh 0 0 0; padding: 0; }
