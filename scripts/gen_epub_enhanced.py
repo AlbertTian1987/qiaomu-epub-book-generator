@@ -146,7 +146,20 @@ hr::after { content: "\\2766"; color: var(--ink); font-size: 1em; display: block
 .scene-break { text-align: center; color: var(--ink); margin: 2em 0; line-height: 1; }
 
 /* --- 7. Blockquote --- */
-blockquote { margin: 1em 2em; padding: 0; color: var(--olive); line-height: inherit; }
+blockquote { margin: 1em 2em; padding: 2em 0; color: var(--olive); line-height: inherit; border-top: 0.3pt solid var(--border); border-bottom: 0.3pt solid var(--border); }
+
+/* 引文出处：small-caps + olive */
+cite { font-style: normal; font-size: 0.9em; color: var(--stone); }
+
+/* --- 7b. 首字下沉（仅 literary 英文） --- */
+.kami-root.mode-literary .dropcap {
+    float: left;
+    font-size: 3.4em;
+    line-height: 0.85;
+    margin: 0.08em 0.12em 0 -0.02em;
+    color: var(--ink);
+    font-weight: 500;
+}
 
 /* --- 8. 普通标题（无左边栏）--- */
 h1, h2, h3, h4 { font-weight: 500; color: var(--text); margin: 1.5em 0 0.5em 0; }
@@ -810,6 +823,31 @@ def style_author_notes(html):
     return html
 
 
+def wrap_dropcap(html, lang="zh", mode="webnovel"):
+    """literary 英文模式下，将章首段首字母包装为 dropcap span。"""
+    if mode != "literary" or not lang.startswith("en"):
+        return html
+    # 找到第一个 <p> 标签的内容
+    def replace_first_letter(m):
+        p_content = m.group(1)
+        if not p_content:
+            return m.group(0)
+        stripped = p_content.lstrip()
+        if not stripped:
+            return m.group(0)
+        # 找到第一个字母
+        for i, ch in enumerate(stripped):
+            if ch.isalpha():
+                prefix = stripped[:i]
+                letter = stripped[i]
+                rest = stripped[i+1:]
+                new_content = p_content.replace(stripped, f'{prefix}<span class="dropcap">{letter}</span>{rest}', 1)
+                return f'<p>{new_content}</p>'
+        return m.group(0)
+
+    return re.sub(r'<p>([^<]*)</p>', replace_first_letter, html, count=1)
+
+
 def build_chapter_xhtml(chapter_info, body_html, mode="webnovel"):
     """Build XHTML with Kami literary chapter structure.
     chapter_info: dict with keys: title, chapter_num, chapter_name, kind,
@@ -1098,6 +1136,10 @@ def create_epub(args):
                 )
                 md_html = fix_xhtml(md_html)
 
+                # P2: dropcap（仅 literary 英文模式）
+                if mode == "literary" and args.language.startswith("en"):
+                    md_html = wrap_dropcap(md_html, lang=args.language, mode=mode)
+
                 # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
                 md_html = normalize_scene_breaks(md_html)
                 md_html = style_author_notes(md_html)
@@ -1180,6 +1222,10 @@ def create_epub(args):
                 }
             )
             md_html = fix_xhtml(md_html)
+
+            # P2: dropcap（仅 literary 英文模式）
+            if mode == "literary" and args.language.startswith("en"):
+                md_html = wrap_dropcap(md_html, lang=args.language, mode=mode)
 
             # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
             md_html = normalize_scene_breaks(md_html)
