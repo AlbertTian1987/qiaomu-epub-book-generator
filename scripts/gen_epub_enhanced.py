@@ -28,155 +28,168 @@ from PIL import Image
 import io
 
 
-# Kami 设计语言（羊皮纸 + 墨蓝 + serif），不设 body 背景以兼容阅读器暗色模式
+# Kami 文学版设计语言
+# 羊皮纸 + 墨蓝 + serif + 全暖灰 + 零装饰 + 双光照色契约
 CHAPTER_CSS = """
-body {
+/* ===== Kami Literary Design System =====
+ * 羊皮纸 + 墨蓝 + serif + 全暖灰 + 零装饰
+ * 双光照色契约：浅色 / 暗色    双模式：webnovel（默认）/ literary
+ * Anti-patterns: 无 box-shadow, 无渐变, 无第二色相, 无合成粗体/斜体, 无左边栏
+ */
+
+/* --- 1. CSS Variables + 双光照色契约 --- */
+:root {
+    --paper:  #f5f4ed;
+    --ivory:  #faf9f5;
+    --ink:    #1B365D;
+    --text:   #141413;
+    --olive:  #504e49;
+    --stone:  #6b6a64;
+    --border: #e8e6dc;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --paper:  #1c1a17;
+        --ivory:  #252320;
+        --ink:    #6B95C9;
+        --text:   #e8e4d8;
+        --olive:  #b3aa9b;
+        --stone:  #8a8378;
+        --border: #3a3631;
+    }
+}
+
+/* --- 2. Base --- */
+html, body {
+    background: var(--paper);
+    color: var(--text);
     font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
                  "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
-    line-height: 1.55;
+    line-height: 1.65;
     margin: 1em;
     padding: 0;
     font-size: 1em;
-    color: #141413;
-    letter-spacing: 0.02em;
-}
-h1, h2, h3, h4 {
-    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
-                 "Noto Serif CJK SC", "Songti SC", Georgia, serif;
-    font-weight: 500;
-    color: #141413;
-}
-h1 {
-    font-size: 1.7em;
-    line-height: 1.20;
-    margin: 0 0 1em 0;
-    border-left: 2.5pt solid #1B365D;
-    border-radius: 1.5pt;
-    padding-left: 0.5em;
-}
-h2 {
-    font-size: 1.3em;
-    line-height: 1.25;
-    margin: 1.8em 0 0.6em 0;
-    border-left: 2pt solid #1B365D;
-    padding-left: 0.45em;
-}
-h3 {
-    font-size: 1.1em;
-    line-height: 1.30;
-    margin: 1.4em 0 0.4em 0;
-    color: #3d3d3a;
-}
-h4 {
-    font-size: 1em;
-    line-height: 1.35;
-    margin: 1.1em 0 0.3em 0;
-    color: #504e49;
-}
-p {
-    margin: 0 0 0.85em 0;
     text-align: justify;
+    widows: 2;
+    orphans: 2;
+    font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
+    text-rendering: optimizeLegibility;
+    line-break: strict;
+    word-break: keep-all;
+    hanging-punctuation: allow-end last;
 }
-strong, b {
-    font-weight: 600;
-    color: #141413;
-}
-em, i {
-    font-style: italic;
-    color: #3d3d3a;
-}
-/* Kami 引用：墨蓝左边栏 + olive 文字，无背景填充 */
-blockquote {
-    border-left: 2pt solid #1B365D;
-    padding: 0.2em 0 0.2em 1em;
-    margin: 1em 0;
-    color: #504e49;
+
+body.mode-literary {
     line-height: 1.55;
 }
-img {
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 1em auto;
+
+/* 无合成粗体 */
+strong, b { font-weight: 500; color: var(--ink); }
+
+/* 中文着重号，英文真斜体 */
+em, i {
+    font-style: normal; font-weight: inherit; color: inherit;
+    -webkit-text-emphasis: dot;
+    -webkit-text-emphasis-position: under right;
+    text-emphasis: dot;
+    text-emphasis-position: under right;
 }
-.metadata {
-    color: #6b6a64;
-    font-size: 0.85em;
-    margin-bottom: 1em;
-    font-style: italic;
+html[lang^="en"] em, html[lang^="en"] i {
+    font-style: italic; -webkit-text-emphasis: none; text-emphasis: none;
 }
-.card-img {
-    text-align: center;
-    margin: 1em 0;
+/* 旧阅读器降级 */
+@supports not (text-emphasis: dot) {
+    em, i { color: var(--ink); font-weight: 500; }
 }
-hr {
-    border: none;
-    border-top: 0.5pt solid #e8e6dc;
-    margin: 2em 0;
+
+/* --- 3. Paragraphs --- */
+p { margin: 0; text-indent: 2em; text-align: justify; }
+
+/* 章首/引用后/场景分隔后第一段不缩进 */
+.chapter-ornament + p, blockquote + p, .scene-break + p,
+h1 + p, h2 + p, h3 + p, h4 + p { text-indent: 0; }
+
+/* --- 4. Chapter Title System --- */
+.chapter-header { text-align: center; margin: 25vh 0 0 0; padding: 0; }
+.chapter-num { font-size: 0.7em; color: var(--stone); font-weight: 500; }
+.chapter-num.num-short { letter-spacing: 0.25em; }
+.chapter-num.num-long  { letter-spacing: 0.1em; }
+.chapter-title {
+    font-weight: 500; color: var(--text); margin: 0;
+    text-wrap: balance; word-wrap: break-word; overflow-wrap: break-word;
 }
-/* Kami 代码块：ivory 底 + 暖色边 + 墨蓝左边栏 */
+.chapter-num-above .chapter-num { display: block; margin-bottom: 0.3em; }
+.chapter-num-inline .chapter-title .chapter-num { display: inline; }
+.chapter-num-inline .title-sep { color: var(--stone); margin: 0 0.15em; }
+
+/* webnovel 字号档 */
+body.mode-webnovel .chapter-title.title-l  { font-size: 1.6em; letter-spacing: 0.1em;  line-height: 1.20; }
+body.mode-webnovel .chapter-title.title-m  { font-size: 1.4em; letter-spacing: 0.05em; line-height: 1.25; }
+body.mode-webnovel .chapter-title.title-s  { font-size: 1.2em; letter-spacing: 0;      line-height: 1.35; }
+body.mode-webnovel .chapter-title.title-xs { font-size: 1.1em; letter-spacing: 0;      line-height: 1.45; }
+
+/* literary 字号档 */
+body.mode-literary .chapter-title.title-l  { font-size: 2.4em;  letter-spacing: 0.4em;  line-height: 1.15; }
+body.mode-literary .chapter-title.title-m  { font-size: 1.8em;  letter-spacing: 0.2em;  line-height: 1.20; }
+body.mode-literary .chapter-title.title-s  { font-size: 1.4em;  letter-spacing: 0.05em; line-height: 1.30; }
+body.mode-literary .chapter-title.title-xs { font-size: 1.15em; letter-spacing: 0;      line-height: 1.40; }
+
+/* --- 5. Chapter Ornament --- */
+.chapter-ornament { text-align: center; color: var(--ink); margin: 1.5em 0; line-height: 1; }
+
+/* --- 6. Scene Break: <hr> → ❦ --- */
+hr { border: none; margin: 2em 0; text-align: center; }
+hr::after { content: "\\2766"; color: var(--ink); font-size: 1em; display: block; text-align: center; }
+.scene-break { text-align: center; color: var(--ink); margin: 2em 0; line-height: 1; }
+
+/* --- 7. Blockquote --- */
+blockquote { margin: 1em 2em; padding: 0; color: var(--olive); line-height: inherit; }
+
+/* --- 8. 普通标题（无左边栏）--- */
+h1, h2, h3, h4 { font-weight: 500; color: var(--text); margin: 1.5em 0 0.5em 0; }
+h1 { font-size: 1.6em; line-height: 1.20; }
+h2 { font-size: 1.3em; line-height: 1.25; }
+h3 { font-size: 1.1em; line-height: 1.30; color: var(--olive); }
+h4 { font-size: 1em;   line-height: 1.35; color: var(--stone); }
+
+/* --- 9. Code --- */
 pre {
-    background: #faf9f5;
-    border: 0.5pt solid #e8e6dc;
-    border-left: 2pt solid #1B365D;
-    border-radius: 4pt;
-    padding: 0.9em 1em;
-    overflow-x: auto;
-    margin: 1em 0;
+    background: var(--ivory); border: 0.5pt solid var(--border);
+    border-left: 2pt solid var(--ink); border-radius: 4pt;
+    padding: 0.9em 1em; overflow-x: auto; margin: 1em 0;
     font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas",
                  "Source Han Serif SC", "Noto Serif CJK SC", monospace;
-    font-size: 0.85em;
-    line-height: 1.45;
-    tab-size: 2;
-    color: #141413;
+    font-size: 0.85em; line-height: 1.45; tab-size: 2; color: var(--text);
 }
-/* 行内代码：ivory 底 + 墨蓝字 */
 code {
     font-family: "JetBrains Mono", "SF Mono", "Monaco", "Consolas",
                  "Source Han Serif SC", "Noto Serif CJK SC", monospace;
-    font-size: 0.9em;
-    background: #faf9f5;
-    padding: 0.15em 0.4em;
-    border-radius: 3pt;
-    color: #1B365D;
+    font-size: 0.9em; background: var(--ivory);
+    padding: 0.15em 0.4em; border-radius: 3pt; color: var(--ink);
 }
-pre code {
-    background: none;
-    padding: 0;
-    color: inherit;
-}
-/* Kami 表格：无填充表头，1pt 暖色下划线，无斑马纹 */
-table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 1em 0;
-    font-size: 0.92em;
-    line-height: 1.5;
-}
-th {
-    text-align: left;
-    font-weight: 500;
-    color: #3d3d3a;
-    padding: 0.5em 0.6em;
-    border-bottom: 1pt solid #e8e6dc;
-    background: transparent;
-}
-td {
-    padding: 0.4em 0.6em;
-    border-bottom: 0.3pt solid #e5e3d8;
-    vertical-align: top;
-}
-ul, ol {
-    margin: 0.5em 0 1em 1.5em;
-    padding: 0;
-}
-li {
-    margin: 0.3em 0;
-}
-/* 抑制 Pygments 错误 token 的红框（已知 bug） */
-.codehilite span[style*="border: 1px solid #FF0000"] {
-    border: none !important;
-}
+pre code { background: none; padding: 0; color: inherit; }
+
+/* --- 10. Tables --- */
+table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.92em; line-height: 1.5; }
+th { text-align: left; font-weight: 500; color: var(--text); padding: 0.5em 0.6em; border-bottom: 1pt solid var(--border); background: transparent; }
+td { padding: 0.4em 0.6em; border-bottom: 0.3pt solid var(--border); vertical-align: top; }
+
+/* --- 11. Lists --- */
+ul, ol { margin: 0.5em 0 1em 1.5em; padding: 0; }
+li { margin: 0.3em 0; }
+
+/* --- 12. Images --- */
+img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
+.card-img { text-align: center; margin: 1em 0; }
+
+/* --- 13. Metadata & Utility --- */
+.metadata { color: var(--stone); font-size: 0.85em; margin-bottom: 1em; font-style: normal; }
+.author-note { color: var(--stone); font-size: 0.85em; margin-top: 1.5em; text-indent: 0; }
+.unfinished { text-align: center; color: var(--stone); font-size: 0.75em; margin-top: 1em; text-indent: 0; }
+
+/* --- 14. Pygments fix --- */
+.codehilite span[style*="border: 1px solid #FF0000"] { border: none !important; }
 """
 
 
