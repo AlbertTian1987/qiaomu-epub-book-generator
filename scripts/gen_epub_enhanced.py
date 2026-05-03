@@ -26,6 +26,7 @@ from ebooklib import epub
 import markdown
 from PIL import Image
 import io
+import yaml
 
 
 # Kami 文学版设计语言
@@ -191,6 +192,60 @@ img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
 /* --- 14. Pygments fix --- */
 .codehilite span[style*="border: 1px solid #FF0000"] { border: none !important; }
 """
+
+
+# --- 章节标题解析：从 "第一章 灯塔" 提取章号与章名 ---
+CHAPTER_PATTERNS = [
+    re.compile(r'^(第[一二三四五六七八九十百千万零\d]+[章节篇回])[·\s　]*'),
+    re.compile(r'^(第\d+[章节篇回])[·\s]*'),
+    re.compile(r'^(Chapter|CHAPTER)\s+\d+[·:\s]*'),
+]
+
+def parse_chapter_heading(heading):
+    """从 '# 第一章 灯塔' 提取 ('第一章', '灯塔')。
+    返回 (chapter_num, chapter_name)，无法识别时 ('', heading)。"""
+    heading = heading.strip()
+    for pat in CHAPTER_PATTERNS:
+        m = pat.match(heading)
+        if m:
+            num = m.group(1).strip()
+            name = heading[m.end():].strip()
+            return (num, name)
+    return ("", heading)
+
+def chapter_title_class(chapter_num, chapter_name):
+    """根据章号+章名总字符数返回字号 class: title-l/m/s/xs"""
+    total = len(chapter_num) + len(chapter_name)
+    if total <= 8:   return "title-l"
+    if total <= 15:  return "title-m"
+    if total <= 25:  return "title-s"
+    return "title-xs"
+
+def chapter_num_class(chapter_num):
+    """章号字距档：4 字以内短（如"第一章"），超过（如"第五百二十五章"）收紧"""
+    return "num-long" if len(chapter_num) > 4 else "num-short"
+
+def auto_num_position(chapter_num, chapter_name, mode):
+    """webnovel 模式下长章名自动 inline，literary 模式 always above"""
+    if mode == "literary":
+        return "above"
+    if mode == "webnovel" and len(chapter_num) + len(chapter_name) > 15:
+        return "inline"
+    return "above"
+
+def parse_frontmatter(content):
+    """解析 YAML frontmatter，返回 (frontmatter_dict, remaining_content)。"""
+    fm = {}
+    rest = content
+    if content.startswith('---\n'):
+        parts = content.split('---\n', 2)
+        if len(parts) >= 3:
+            try:
+                fm = yaml.safe_load(parts[1]) or {}
+                rest = parts[2]
+            except Exception:
+                pass
+    return fm, rest
 
 
 def compress_image(img_data_or_path, target_width=1000, jpeg_quality=88):
@@ -524,25 +579,16 @@ def extract_and_download_images(markdown_text, book, image_width=1000, jpeg_qual
 
 
 def parse_article(md_path):
-    """Parse Markdown article, extract title and metadata, clean jina.ai headers."""
+    """Parse Markdown article, extract title, metadata, and frontmatter fields.
+    Returns: (title, metadata, body, frontmatter_dict)"""
     with open(md_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Check for YAML frontmatter
-    yaml_frontmatter = {}
-    if content.startswith('---\n'):
-        parts = content.split('---\n', 2)
-        if len(parts) >= 3:
-            try:
-                import yaml
-                yaml_frontmatter = yaml.safe_load(parts[1]) or {}
-                content = parts[2]  # Use content after frontmatter
-            except:
-                pass  # If YAML parsing fails, continue with original content
+    frontmatter, content = parse_frontmatter(content)
 
     lines = content.strip().split('\n')
 
-    title = yaml_frontmatter.get('title', "Untitled")
+    title = frontmatter.get('title', "Untitled")
     metadata = ""
     body_start = 0
 
@@ -551,23 +597,19 @@ def parse_article(md_path):
     while i < len(lines):
         line = lines[i].strip()
 
-        # Extract title from jina.ai format (if not from YAML)
         if line.startswith('Title:') and title == "Untitled":
             title = line.split(':', 1)[1].strip()
             i += 1
             continue
 
-        # Skip jina.ai metadata lines
         if line.startswith('URL Source:') or line.startswith('Published Time:'):
             i += 1
             continue
 
-        # Skip "Markdown Content:" marker
         if line.startswith('Markdown Content:'):
             body_start = i + 1
             break
 
-        # Standard Markdown title (if not from YAML)
         if line.startswith('# ') and title == "Untitled":
             title = line[2:].strip()
             body_start = i + 1
@@ -576,22 +618,19 @@ def parse_article(md_path):
                 body_start = i + 2
             break
 
-        # Skip empty lines at start
         if not line:
             i += 1
             continue
 
-        # If we hit content without finding title, use first line
         if i < 5:
             i += 1
             continue
 
-        # Give up searching for title
         body_start = i
         break
 
     body = '\n'.join(lines[body_start:]).strip()
-    return title, metadata, body
+    return title, metadata, body, frontmatter
 
 
 def split_markdown_by_headers(content):
@@ -673,6 +712,60 @@ def fix_xhtml(html_str):
     return html_str
 
 
+def build_chapter_xhtml(chapter_info, body_html, mode="webnovel"):
+    """Build XHTML with Kami literary chapter structure.
+    chapter_info: dict with keys: title, chapter_num, chapter_name, kind,
+                  title_class, num_class, num_position"""
+    escaped_title = html_module.escape(chapter_info["title"])
+
+    # Build chapter header based on kind and num_position
+    kind = chapter_info.get("kind", "正文")
+    if kind in ("楔子", "序章", "引子", "番外"):
+        # No chapter number display
+        header = (
+            f'<div class="chapter-header">'
+            f'<h1 class="chapter-title {chapter_info["title_class"]}">{escaped_title}</h1>'
+            f'</div>\n'
+            f'<div class="chapter-ornament">❦</div>'
+        )
+    elif chapter_info["num_position"] == "inline":
+        # Chapter number inline with title (webnovel long titles)
+        header = (
+            f'<div class="chapter-header chapter-num-inline">'
+            f'<h1 class="chapter-title {chapter_info["title_class"]}">'
+            f'<span class="chapter-num {chapter_info["num_class"]}">{html_module.escape(chapter_info["chapter_num"])}</span>'
+            f'<span class="title-sep"> · </span>'
+            f'{html_module.escape(chapter_info["chapter_name"])}'
+            f'</h1>'
+            f'</div>\n'
+            f'<div class="chapter-ornament">❦</div>'
+        )
+    else:
+        # Chapter number above title
+        header = (
+            f'<div class="chapter-header chapter-num-above">'
+            f'<div class="chapter-num {chapter_info["num_class"]}">{html_module.escape(chapter_info["chapter_num"])}</div>'
+            f'<h1 class="chapter-title {chapter_info["title_class"]}">{html_module.escape(chapter_info["chapter_name"])}</h1>'
+            f'</div>\n'
+            f'<div class="chapter-ornament">❦</div>'
+        )
+
+    body_class = f"mode-{mode}"
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>{escaped_title}</title>
+<link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+<body class="{body_class}">
+{header}
+{body_html}
+</body>
+</html>"""
+
+
 def generate_html_cover(title, subtitle="", author=""):
     """Generate cover image from HTML template using Playwright."""
     try:
@@ -729,8 +822,11 @@ def create_epub(args):
 
     # Extract title from first article if not provided
     title = args.title
+    mode = args.mode
+    # 如果指定了显式章号位置，覆盖 auto_num_position 的结果
+    explicit_num_pos = getattr(args, 'chapter_num_position', None)
     if not title:
-        first_title, _, _ = parse_article(md_files[0])
+        first_title, _, _, _ = parse_article(md_files[0])
         title = first_title
 
     book = epub.EpubBook()
@@ -790,7 +886,7 @@ def create_epub(args):
             full_content = f.read()
 
         # Extract book title from # header
-        title_text, metadata, body = parse_article(md_files[0])
+        title_text, metadata, body, frontmatter = parse_article(md_files[0])
 
         # Split by ## headers
         chapter_list = split_markdown_by_headers(body)
@@ -843,7 +939,24 @@ def create_epub(args):
                 )
                 md_html = fix_xhtml(md_html)
 
-                chapter_html = build_xhtml(ch_title, "", "", md_html)
+                # 从标题提取章号/章名
+                chapter_num_text, chapter_name = parse_chapter_heading(ch_title)
+                if not chapter_num_text:
+                    chapter_num_text, chapter_name = "", ch_title
+
+                chapter_info = {
+                    "title": ch_title,
+                    "chapter_num": chapter_num_text,
+                    "chapter_name": chapter_name,
+                    "kind": "正文",
+                    "title_class": chapter_title_class(chapter_num_text, chapter_name),
+                    "num_class": chapter_num_class(chapter_num_text),
+                    "num_position": auto_num_position(chapter_num_text, chapter_name, mode),
+                }
+                if explicit_num_pos:
+                    chapter_info["num_position"] = explicit_num_pos
+
+                chapter_html = build_chapter_xhtml(chapter_info, md_html, mode=mode)
 
                 chapter = epub.EpubHtml(
                     title=ch_title,
@@ -862,7 +975,7 @@ def create_epub(args):
             chapter_num += 1
             print(f"  [{chapter_num}/{len(md_files)}] {slug}")
 
-            title_text, metadata, body = parse_article(md_path)
+            title_text, metadata, body, frontmatter = parse_article(md_path)
 
             # Download and embed images from Markdown
             body, img_count, img_size = extract_and_download_images(
@@ -892,7 +1005,24 @@ def create_epub(args):
             )
             md_html = fix_xhtml(md_html)
 
-            chapter_html = build_xhtml(title_text, metadata, "", md_html)
+            chapter_num_text, chapter_name = parse_chapter_heading(title_text)
+            if not chapter_num_text:
+                chapter_num_text, chapter_name = "", title_text
+
+            kind = frontmatter.get("kind", "正文") if frontmatter else "正文"
+            chapter_info = {
+                "title": title_text,
+                "chapter_num": chapter_num_text,
+                "chapter_name": chapter_name,
+                "kind": kind,
+                "title_class": chapter_title_class(chapter_num_text, chapter_name),
+                "num_class": chapter_num_class(chapter_num_text),
+                "num_position": auto_num_position(chapter_num_text, chapter_name, mode),
+            }
+            if explicit_num_pos:
+                chapter_info["num_position"] = explicit_num_pos
+
+            chapter_html = build_chapter_xhtml(chapter_info, md_html, mode=mode)
 
             chapter = epub.EpubHtml(
                 title=title_text,
@@ -949,6 +1079,10 @@ def main():
     parser.add_argument('--subtitle', help='Subtitle for cover')
     parser.add_argument('--image-quality', type=int, default=88, help='JPEG quality 1-100 (default: 88)')
     parser.add_argument('--image-width', type=int, default=1000, help='Max image width px (default: 1000)')
+    parser.add_argument('--mode', default='webnovel', choices=['webnovel', 'literary'],
+                        help='排版模式: webnovel（默认，长章名自适应）, literary（短章名戏剧化）')
+    parser.add_argument('--chapter-num-position', choices=['above', 'inline', 'hidden'], default=None,
+                        help='章号位置: above（上方独立行）, inline（与章名同行）, hidden（隐藏）')
 
     args = parser.parse_args()
     create_epub(args)
