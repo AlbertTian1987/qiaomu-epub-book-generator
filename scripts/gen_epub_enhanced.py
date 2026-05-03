@@ -65,7 +65,7 @@ CHAPTER_CSS = """
 html, body {
     background: var(--paper);
     color: var(--text);
-    font-family: "Charter", "Iowan Old Style", "Source Han Serif SC",
+    font-family: "Charter Embedded", "Charter", "Iowan Old Style", "Source Han Serif SC",
                  "Noto Serif CJK SC", "Songti SC", "STSong", Georgia, serif;
     line-height: 1.65;
     margin: 1em;
@@ -961,11 +961,16 @@ def create_epub(args):
     book.set_language(args.language)
 
     # 注册 Kami 设计语言 CSS 为独立 style.css 资源（ebooklib 会丢弃内联 <style>）
+    css_content = CHAPTER_CSS
+    if getattr(args, 'embed_charter', False):
+        font_css = embed_charter_fonts(book)
+        css_content = font_css + css_content
+
     css_item = epub.EpubItem(
         uid="style_css",
         file_name="style.css",
         media_type="text/css",
-        content=CHAPTER_CSS,
+        content=css_content,
     )
     book.add_item(css_item)
 
@@ -1340,6 +1345,54 @@ def create_epub(args):
     print(f"  Chapters: {len(chapter_records)}")
 
 
+CHARTER_FONTS_DIR = "/tmp/charter_fonts"
+
+CHARTER_FACE_CSS = """
+@font-face {
+    font-family: "Charter Embedded";
+    font-weight: 400;
+    font-style: normal;
+    src: url("fonts/Charter-Roman.ttf");
+}
+@font-face {
+    font-family: "Charter Embedded";
+    font-weight: 400;
+    font-style: italic;
+    src: url("fonts/Charter-Italic.ttf");
+}
+@font-face {
+    font-family: "Charter Embedded";
+    font-weight: 500;
+    font-style: normal;
+    src: url("fonts/Charter-Bold.ttf");
+}
+"""
+
+def embed_charter_fonts(book):
+    """嵌入 Charter 字体到 EPUB 并返回 @font-face CSS。"""
+    import os
+    font_files = [
+        ("Charter-Roman.ttf", "font/ttf"),
+        ("Charter-Italic.ttf", "font/ttf"),
+        ("Charter-Bold.ttf", "font/ttf"),
+    ]
+    for fname, media_type in font_files:
+        fpath = os.path.join(CHARTER_FONTS_DIR, fname)
+        if not os.path.exists(fpath):
+            print(f"  Warning: Charter font not found: {fpath}")
+            continue
+        with open(fpath, 'rb') as f:
+            data = f.read()
+        item = epub.EpubItem(
+            uid=f"font_{fname.replace('-', '_').replace('.', '_')}",
+            file_name=f"fonts/{fname}",
+            media_type=media_type,
+            content=data,
+        )
+        book.add_item(item)
+    return CHARTER_FACE_CSS
+
+
 def main():
     parser = argparse.ArgumentParser(description='Enhanced EPUB generator with image downloading')
     parser.add_argument('input_dir', help='Directory containing Markdown files')
@@ -1361,6 +1414,8 @@ def main():
                         help='章号位置: above（上方独立行）, inline（与章名同行）, hidden（隐藏）')
     parser.add_argument('--no-punct-fix', action='store_true',
                         help='关闭中文标点自动归一化')
+    parser.add_argument('--embed-charter', action='store_true',
+                        help='嵌入 Charter 字体（~1.5MB，非 macOS 设备也能显示 Charter）')
 
     args = parser.parse_args()
     create_epub(args)
