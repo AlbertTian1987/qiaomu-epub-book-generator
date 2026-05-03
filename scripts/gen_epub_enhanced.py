@@ -191,6 +191,14 @@ img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
 
 /* --- 14. Pygments fix --- */
 .codehilite span[style*="border: 1px solid #FF0000"] { border: none !important; }
+
+/* --- 15. TOC Page --- */
+.toc-volume { text-align: center; font-weight: 500; color: var(--ink); margin: 1.5em 0 0.5em 0; font-size: 0.9em; letter-spacing: 0.2em; }
+.toc-chapter { text-align: center; margin: 0.3em 0; }
+.toc-chapter a { color: var(--text); text-decoration: none; font-size: 0.9em; }
+.toc-chapter a:hover { color: var(--ink); }
+.toc-special-area { margin-top: 1.5em; margin-bottom: 0.3em; text-align: center; font-size: 0.85em; color: var(--stone); }
+.toc-special-area a { color: var(--stone); }
 """
 
 
@@ -712,6 +720,31 @@ def fix_xhtml(html_str):
     return html_str
 
 
+def normalize_scene_breaks(html):
+    """将正文中的场景分隔符（---, ***, <hr>, 连续 <br/>）归一为 ❦。"""
+    html = re.sub(r'<hr\s*/>', '<div class="scene-break">&#10086;</div>', html)
+    html = re.sub(r'(<br/>\s*){3,}', '<div class="scene-break">&#10086;</div>', html)
+    return html
+
+
+def detect_unfinished(text):
+    """检测正文末尾是否有（未完待续）标记，返回 (cleaned_text, has_unfinished)。"""
+    m = re.search(r'[（(]未完待续[）)]\s*$', text.strip())
+    if m:
+        return text[:m.start()].strip(), True
+    return text, False
+
+
+def style_author_notes(html):
+    """将章末引用块中的 PS: / 作者按 / 作者注 样式化为 author-note。"""
+    html = re.sub(
+        r'<blockquote>\s*<p>(PS[:：]|作者按|作者注)',
+        r'<blockquote class="author-note"><p>\1',
+        html
+    )
+    return html
+
+
 def build_chapter_xhtml(chapter_info, body_html, mode="webnovel"):
     """Build XHTML with Kami literary chapter structure.
     chapter_info: dict with keys: title, chapter_num, chapter_name, kind,
@@ -763,6 +796,7 @@ def build_chapter_xhtml(chapter_info, body_html, mode="webnovel"):
 <div class="kami-root {body_class}">
 {header}
 {body_html}
+<div class="chapter-ornament chapter-end">&#10086;</div>
 </div>
 </body>
 </html>"""
@@ -806,6 +840,48 @@ def generate_svg_cover(title, subtitle="", author="", theme=None, layout="minima
 
     with open(cover_path, 'rb') as f:
         return f.read()
+
+
+def build_volume_page(volume_name, volume_title="", mode="webnovel"):
+    """生成卷封页 XHTML。"""
+    body_class = f"mode-{mode}"
+    title_html = (
+        f'<div class="chapter-header" style="margin-top:35vh">'
+        f'<h1 class="chapter-title title-l" style="font-size:1.4em;letter-spacing:0.4em">{html_module.escape(volume_name)}</h1>'
+        f'</div>'
+    )
+    if volume_title:
+        title_html += f'\n<p style="text-align:center;color:var(--olive);font-size:0.85em;margin-top:1em">{html_module.escape(volume_title)}</p>'
+    title_html += '\n<div class="chapter-ornament">&#10086;</div>'
+    return f'''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
+<head><title>{html_module.escape(volume_name)}</title><link rel="stylesheet" type="text/css" href="style.css" /></head>
+<body><div class="kami-root {body_class}">{title_html}</div></body>
+</html>'''
+
+
+def build_toc_page(toc_entries, mode="webnovel"):
+    """生成 Kami 风格的 TOC 目录页。
+    toc_entries: [(level, title, file_name, is_volume), ...]"""
+    items_html = ""
+    for level, title, fname, is_volume in toc_entries:
+        if is_volume:
+            items_html += f'<div class="toc-volume">{html_module.escape(title)}</div>\n'
+        else:
+            items_html += f'<div class="toc-chapter"><a href="{fname}">{html_module.escape(title)}</a></div>\n'
+
+    body_class = f"mode-{mode}"
+    return f'''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
+<head><title>目录</title><link rel="stylesheet" type="text/css" href="style.css" /></head>
+<body><div class="kami-root {body_class}">
+<h1 style="text-align:center;font-size:1.2em;margin:2em 0 1.5em 0">目　录</h1>
+<div class="toc-list">
+{items_html}
+</div>
+</div></body></html>'''
 
 
 def create_epub(args):
@@ -873,13 +949,9 @@ def create_epub(args):
         book.set_cover("cover.jpg", cover_data)
 
     # Process articles
-    chapters = []
-    toc_items = []
-    # 修复：spine 留空，由 ebooklib 自动处理导航文档；
-    # 原先手动设置 ['nav'] 但未在 manifest 创建 id="nav" 项，导致部分阅读器解析失败、不渲染图片
-    spine = []
     total_img_size = 0
     total_img_count = 0
+    chapter_records = []
 
     # Check if we should split by headers (single file with ## headers)
     should_split = len(md_files) == 1
@@ -913,9 +985,12 @@ def create_epub(args):
                 chapter_num += 1
                 print(f"  [{chapter_num}/{len(chapter_list)}] {ch_title}")
 
+                # --- P0: 未完待续标记检测 ---
+                ch_body_clean, has_unfinished = detect_unfinished(ch_body)
+
                 # Download and embed images from Markdown
-                ch_body, img_count, img_size = extract_and_download_images(
-                    ch_body, book, args.image_width, args.image_quality, base_dir=md_dir
+                ch_body_processed, img_count, img_size = extract_and_download_images(
+                    ch_body_clean, book, args.image_width, args.image_quality, base_dir=md_dir
                 )
                 total_img_count += img_count
                 total_img_size += img_size
@@ -925,7 +1000,7 @@ def create_epub(args):
 
                 # Markdown → HTML with full extensions
                 md_html = markdown.markdown(
-                    ch_body,
+                    ch_body_processed,
                     extensions=[
                         'extra',          # Tables, fenced code blocks, etc.
                         'codehilite',     # Syntax highlighting
@@ -941,6 +1016,12 @@ def create_epub(args):
                 )
                 md_html = fix_xhtml(md_html)
 
+                # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
+                md_html = normalize_scene_breaks(md_html)
+                md_html = style_author_notes(md_html)
+                if has_unfinished:
+                    md_html += '\n<div class="unfinished">（未完待续）</div>'
+
                 # 从标题提取章号/章名
                 chapter_num_text, chapter_name = parse_chapter_heading(ch_title)
                 if not chapter_num_text:
@@ -950,6 +1031,7 @@ def create_epub(args):
                     "title": ch_title,
                     "chapter_num": chapter_num_text,
                     "chapter_name": chapter_name,
+                    "volume": None,
                     "kind": "正文",
                     "title_class": chapter_title_class(chapter_num_text, chapter_name),
                     "num_class": chapter_num_class(chapter_num_text),
@@ -969,9 +1051,11 @@ def create_epub(args):
                 chapter.add_item(css_item)
 
                 book.add_item(chapter)
-                chapters.append(chapter)
-                toc_items.append(epub.Link(f"chapter_{chapter_num:03d}.xhtml", ch_title, f"ch{chapter_num}"))
-                spine.append(chapter)
+                chapter_records.append({
+                    "ch_info": chapter_info,
+                    "epub_html": chapter,
+                    "file_name": f"chapter_{chapter_num:03d}.xhtml",
+                })
         else:
             # Process multiple files normally
             chapter_num += 1
@@ -979,9 +1063,12 @@ def create_epub(args):
 
             title_text, metadata, body, frontmatter = parse_article(md_path)
 
+            # --- P0: 未完待续标记检测 ---
+            body_clean, has_unfinished = detect_unfinished(body)
+
             # Download and embed images from Markdown
-            body, img_count, img_size = extract_and_download_images(
-                body, book, args.image_width, args.image_quality, base_dir=md_dir
+            body_processed, img_count, img_size = extract_and_download_images(
+                body_clean, book, args.image_width, args.image_quality, base_dir=md_dir
             )
             total_img_count += img_count
             total_img_size += img_size
@@ -991,7 +1078,7 @@ def create_epub(args):
 
             # Markdown → HTML with full extensions
             md_html = markdown.markdown(
-                body,
+                body_processed,
                 extensions=[
                     'extra',          # Tables, fenced code blocks, etc.
                     'codehilite',     # Syntax highlighting
@@ -1007,15 +1094,23 @@ def create_epub(args):
             )
             md_html = fix_xhtml(md_html)
 
+            # --- P0: 场景分隔符归一 + 作者按样式 + 未完待续追加 ---
+            md_html = normalize_scene_breaks(md_html)
+            md_html = style_author_notes(md_html)
+            if has_unfinished:
+                md_html += '\n<div class="unfinished">（未完待续）</div>'
+
             chapter_num_text, chapter_name = parse_chapter_heading(title_text)
             if not chapter_num_text:
                 chapter_num_text, chapter_name = "", title_text
 
             kind = frontmatter.get("kind", "正文") if frontmatter else "正文"
+            volume = frontmatter.get("volume") if frontmatter else None
             chapter_info = {
                 "title": title_text,
                 "chapter_num": chapter_num_text,
                 "chapter_name": chapter_name,
+                "volume": volume,
                 "kind": kind,
                 "title_class": chapter_title_class(chapter_num_text, chapter_name),
                 "num_class": chapter_num_class(chapter_num_text),
@@ -1035,13 +1130,136 @@ def create_epub(args):
             chapter.add_item(css_item)
 
             book.add_item(chapter)
-            chapters.append(chapter)
-            toc_items.append(epub.Link(f"chapter_{chapter_num:03d}.xhtml", title_text, f"ch{chapter_num}"))
-            spine.append(chapter)
+            chapter_records.append({
+                "ch_info": chapter_info,
+                "epub_html": chapter,
+                "file_name": f"chapter_{chapter_num:03d}.xhtml",
+            })
 
-    # TOC and navigation
-    book.toc = toc_items
-    book.spine = spine
+    # --- Phase 2: Build structure (volume grouping, NCX, TOC page) ---
+    has_volumes = any(r["ch_info"].get("volume") for r in chapter_records)
+
+    if not has_volumes:
+        # 无卷：保持现有扁平行为
+        spine = ['nav']
+        toc_items = []
+        for r in chapter_records:
+            fn = r["file_name"]
+            ci = r["ch_info"]
+            toc_items.append(epub.Link(fn, ci["title"], fn))
+            spine.append(r["epub_html"])
+        book.toc = toc_items
+        book.spine = spine
+    else:
+        # 有卷：分组构建嵌套 TOC 和卷封页
+        preamble = []      # 楔子/序章/引子
+        named_volumes = {} # volume_name -> [entries]
+        none_vol = []      # 正文无 volume
+        extras = []        # 番外
+
+        for r in chapter_records:
+            ci = r["ch_info"]
+            kind = ci.get("kind", "正文")
+            vol = ci.get("volume")
+            entry = (ci, r["epub_html"], r["file_name"])
+            if kind in ("楔子", "序章", "引子"):
+                preamble.append(entry)
+            elif kind == "番外":
+                extras.append(entry)
+            elif vol:
+                named_volumes.setdefault(vol, []).append(entry)
+            else:
+                none_vol.append(entry)
+
+        # 保持 volume 首次出现顺序
+        ordered_vols = []
+        seen = set()
+        for r in chapter_records:
+            vol = r["ch_info"].get("volume")
+            if vol and vol not in seen:
+                seen.add(vol)
+                ordered_vols.append(vol)
+
+        # 构建嵌套 TOC 和 spine
+        nested_toc = []
+        spine = ['nav']
+        toc_entries = []  # 用于 styled TOC 页
+        vol_counter = 0
+
+        # 前置区（楔子/序章/引子）
+        if preamble:
+            preamble_links = []
+            for ci, chapter, fn in preamble:
+                preamble_links.append(epub.Link(fn, ci["title"], fn))
+                spine.append(chapter)
+            toc_entries.append((0, "楔子／序章", "", True))
+            for ci, chapter, fn in preamble:
+                toc_entries.append((1, ci["title"], fn, False))
+            nested_toc.append(
+                (epub.Section("楔子／序章", preamble_links[0].href if preamble_links else ""),
+                 preamble_links))
+
+        # 命名卷
+        for vol_name in ordered_vols:
+            entries = named_volumes[vol_name]
+            vol_counter += 1
+            vp_file = f"volume_{vol_counter:03d}.xhtml"
+            vp_html = build_volume_page(vol_name, mode=mode)
+            vp_chapter = epub.EpubHtml(
+                title=vol_name, file_name=vp_file, lang=args.language
+            )
+            vp_chapter.set_content(vp_html.encode('utf-8'))
+            vp_chapter.add_item(css_item)
+            book.add_item(vp_chapter)
+
+            vol_links = [epub.Link(vp_file, vol_name, f"vp{vol_counter}")]
+            spine.append(vp_chapter)
+            toc_entries.append((0, vol_name, "", True))
+            for ci, chapter, fn in entries:
+                vol_links.append(epub.Link(fn, ci["title"], fn))
+                spine.append(chapter)
+                toc_entries.append((1, ci["title"], fn, False))
+            nested_toc.append(
+                (epub.Section(vol_name, vol_links[0].href if vol_links else ""),
+                 vol_links))
+
+        # 无卷正文章节
+        if none_vol:
+            none_links = []
+            toc_entries.append((0, "正文", "", True))
+            for ci, chapter, fn in none_vol:
+                none_links.append(epub.Link(fn, ci["title"], fn))
+                spine.append(chapter)
+                toc_entries.append((1, ci["title"], fn, False))
+            nested_toc.append(
+                (epub.Section("正文", none_links[0].href if none_links else ""),
+                 none_links))
+
+        # 番外
+        if extras:
+            extras_links = []
+            toc_entries.append((0, "番外", "", True))
+            for ci, chapter, fn in extras:
+                extras_links.append(epub.Link(fn, ci["title"], fn))
+                spine.append(chapter)
+                toc_entries.append((1, ci["title"], fn, False))
+            nested_toc.append(
+                (epub.Section("番外", extras_links[0].href if extras_links else ""),
+                 extras_links))
+
+        # 生成 styled TOC 页（在 nav 之后）
+        toc_page_html = build_toc_page(toc_entries, mode=mode)
+        toc_item = epub.EpubHtml(
+            title="目录", file_name="toc.xhtml", lang=args.language
+        )
+        toc_item.set_content(toc_page_html.encode('utf-8'))
+        toc_item.add_item(css_item)
+        book.add_item(toc_item)
+        spine.insert(1, toc_item)
+
+        book.toc = nested_toc
+        book.spine = spine
+
     book.add_item(epub.EpubNcx())
 
     # Write EPUB
@@ -1063,7 +1281,7 @@ def create_epub(args):
     print(f"  Output: {output_path}")
     print(f"  File size: {size_mb:.1f} MB")
     print(f"  Downloaded images: {total_img_count} ({img_size_mb:.1f} MB)")
-    print(f"  Chapters: {len(chapters)}")
+    print(f"  Chapters: {len(chapter_records)}")
 
 
 def main():
